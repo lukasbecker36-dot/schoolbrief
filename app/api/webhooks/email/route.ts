@@ -6,12 +6,13 @@ export async function POST(req: Request) {
     const from = formData.get('from') as string
     const subject = formData.get('subject') as string
     const text = formData.get('text') as string
+    const html = formData.get('html') as string
 
     console.log('📧 Email received!')
     console.log('To:', to)
     console.log('From:', from)
     console.log('Subject:', subject)
-    console.log('Body preview:', text?.slice(0, 200))
+    console.log('Body preview:', (text || html)?.slice(0, 200))
 
     return new Response('ok', { status: 200 })
 
