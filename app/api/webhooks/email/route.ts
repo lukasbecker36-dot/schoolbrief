@@ -5,12 +5,13 @@ export async function POST(req: Request) {
     const to = formData.get('to') as string
     const from = formData.get('from') as string
     const subject = formData.get('subject') as string
-    
+    const rawEmail = formData.get('email') as string
+
     console.log('📧 Email received!')
     console.log('To:', to)
     console.log('From:', from)
     console.log('Subject:', subject)
-    console.log('All fields:', [...formData.keys()])
+    console.log('Raw email preview:', rawEmail?.slice(0, 300))
 
     return new Response('ok', { status: 200 })
 
