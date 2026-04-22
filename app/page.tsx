@@ -50,7 +50,7 @@ export default function Home() {
           placeholder="Your email address"
           value={email}
           onChange={e => setEmail(e.target.value)}
-          className="w-full border rounded-lg p-3 mb-4 text-sm"
+          className="w-full border rounded-lg p-3 mb-4 text-sm text-gray-900 placeholder-gray-500"
         />
         <button
           onClick={handleSignup}
