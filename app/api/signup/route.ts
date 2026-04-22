@@ -1,5 +1,13 @@
 import { supabase } from '@/lib/supabase'
-import { nanoid } from 'nanoid'
+
+function generateId(length: number) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
 
 export async function POST(req: Request) {
   const { email } = await req.json()
@@ -20,7 +28,7 @@ export async function POST(req: Request) {
   }
 
   // Create new user with unique inbound address
-  const inboundAddress = `${nanoid(8)}@in.schoolbrief.uk`
+  const inboundAddress = `${generateId(8)}@in.schoolbrief.uk`
   
   const { data: user, error } = await supabase
     .from('users')
