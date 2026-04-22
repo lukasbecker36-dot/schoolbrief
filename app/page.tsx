@@ -30,7 +30,7 @@ export default function Home() {
           <div className="text-4xl mb-4">📬</div>
           <h1 className="text-2xl font-bold mb-2">You're signed up!</h1>
           <p className="text-gray-600 mb-6">Forward your school emails to this address:</p>
-          <div className="bg-gray-100 rounded-lg p-4 font-mono text-sm break-all mb-6">
+          <div className="bg-gray-100 rounded-lg p-4 font-mono text-sm break-all mb-6 text-gray-900 font-medium">
             {address}
           </div>
           <p className="text-gray-500 text-sm">You'll receive a daily digest every morning with upcoming school events.</p>
