@@ -64,7 +64,9 @@ Email body: ${emailText}`
     console.log('Claude response:', responseText)
 
     // Parse the events
-    const events = JSON.parse(responseText)
+    // Strip markdown code fences if Claude included them
+    const cleanJson = responseText.replace(/```json\n?/g, '').replace(/```/g, '').trim()
+    const events = JSON.parse(cleanJson)
     console.log('Extracted events:', events.length)
 
     // Save each event to the database
