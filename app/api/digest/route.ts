@@ -1,10 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function GET(req: Request) {
   // Verify this is called from Vercel Cron
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('Unauthorized', { status: 401 })
