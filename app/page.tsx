@@ -49,7 +49,8 @@ export default function Home() {
       <div className="bg-white p-8 rounded-xl shadow max-w-md w-full">
         <div className="text-4xl mb-4">🏫</div>
         <h1 className="text-3xl font-bold mb-2 text-gray-900">SchoolBrief</h1>
-        <p className="text-gray-600 mb-6">Get a daily summary of your school emails — events, deadlines, and reminders in one clear morning email.</p>
+        <p className="text-gray-600 mb-2">Get a daily summary of your school emails — events, deadlines, and reminders in one clear morning email.</p>
+        <a href="/how-it-works" className="text-blue-600 text-sm mb-6 inline-block hover:underline">How does it work? →</a>
         <input
           type="email"
           placeholder="Your email address"
