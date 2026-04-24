@@ -38,7 +38,10 @@ export default function Home() {
           <div className="bg-gray-100 rounded-lg p-4 font-mono text-sm break-all mb-6 text-gray-900 font-medium">
             {address}
           </div>
-          <p className="text-gray-500 text-sm">You'll receive a daily digest every morning with upcoming school events.</p>
+          <p className="text-gray-500 text-sm mb-6">You'll receive a daily digest every morning with upcoming school events.</p>
+<a href="/manage" className="inline-block bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg px-5 py-3 font-medium text-sm">
+  Add your children's details →
+</a>
         </div>
       </main>
     )
@@ -74,6 +77,7 @@ export default function Home() {
           {loading ? 'Setting up...' : 'Get my forwarding address'}
         </button>
         <p className="text-xs text-gray-400 mt-4 text-center">Currently in private beta — invite only.</p>
+<p className="text-xs text-gray-400 mt-2 text-center">Already signed up? <a href="/manage" className="text-blue-500 hover:underline">Manage your children →</a></p>
       </div>
     </main>
   )
