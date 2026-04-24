@@ -103,13 +103,16 @@ export default function HowItWorks() {
                 <p className="font-semibold text-gray-900 mb-1">What if an event date is wrong?</p>
                 <p className="text-gray-700 text-sm">AI isn't perfect. If something looks off, always check the original school email. We're working on flagging low-confidence events.</p>
               </div>
-              <div>
-                <p className="font-semibold text-gray-900 mb-1">How much does it cost?</p>
-                <p className="text-gray-700 text-sm">Free during the private beta. We'll let you know well in advance if that changes.</p>
-              </div>
+
             </div>
           </section>
-
+          <section>
+            <h2 className="text-2xl font-bold mb-3 text-gray-900">Get in touch</h2>
+            <p className="text-gray-700 mb-4 text-sm">Questions, feedback, or running into an issue? Drop me a line:</p>
+            <a href="mailto:schoolpulseapp@gmail.com" className="inline-block bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg px-5 py-3 font-medium text-sm">
+              schoolpulseapp@gmail.com
+            </a>
+          </section>
           <section className="text-center pt-8 border-t">
             <p className="text-gray-600 mb-4">Ready to stop missing school events?</p>
             <a href="/" className="inline-block bg-blue-600 text-white rounded-lg px-6 py-3 font-medium">Sign up with your invite code</a>
