@@ -36,6 +36,17 @@ export async function POST(req: Request) {
     }
 
     console.log('Found user:', user.email)
+    // Get the user's children
+const { data: children } = await supabase
+  .from('children')
+  .select('*')
+  .eq('user_id', user.id)
+
+const childrenContext = children && children.length > 0
+  ? `The parent has the following children:\n${children.map((c: any) => `- ${c.name} (${c.year_level})`).join('\n')}`
+  : 'No children registered — include all events.'
+
+console.log('Children:', childrenContext)
 
     // Build the content array for Claude — text + any PDF attachments
     const content: any[] = []
@@ -62,13 +73,20 @@ export async function POST(req: Request) {
       type: 'text',
       text: `You are helping extract school events from a parent email newsletter.
 
-Extract any events, deadlines, or reminders from this email AND any attached PDFs. For each one return:
-- title: short name of the event
+${childrenContext}
+
+Extract any events, deadlines, or reminders from this email AND any attached PDFs. Follow these rules:
+- If the event is clearly for a specific year group that NONE of the children are in, skip it entirely
+- If the event mentions a child's name that matches one of the children above, include their name in the title
+- If the event is for all years or year group is unspecified, include it
+
+For each relevant event return:
+- title: short name of the event, include child's name if relevant (e.g. "Emma — Book Fair")
 - event_date: the date in YYYY-MM-DD format (today is ${new Date().toISOString().split('T')[0]})
-- description: one sentence summary including any actions the parent needs to take. 
+- description: one sentence summary including any actions the parent needs to take
 - action_required: true if the parent needs to do something (pay money, return a form, bring something), false otherwise
 
-Return ONLY a JSON array, no other text. If there are no events, return an empty array [].
+Return ONLY a JSON array, no other text. If there are no relevant events, return an empty array [].
 
 Email subject: ${subject}
 Email body: ${emailText}`
