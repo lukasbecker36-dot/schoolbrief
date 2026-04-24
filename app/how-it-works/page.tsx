@@ -3,12 +3,12 @@ export default function HowItWorks() {
     <main className="min-h-screen bg-gray-50 py-16 px-6">
       <div className="max-w-2xl mx-auto">
         <a href="/" className="text-blue-600 text-sm mb-8 inline-block">← Back</a>
-        
+
         <h1 className="text-4xl font-bold mb-4 text-gray-900">How SchoolBrief works</h1>
         <p className="text-gray-600 mb-12 text-lg">Set it up once in 5 minutes. Never miss a school event again.</p>
 
         <div className="space-y-12">
-          
+
           <section>
             <div className="flex items-center gap-3 mb-3">
               <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">1</span>
@@ -24,18 +24,47 @@ export default function HowItWorks() {
               <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">2</span>
               <h2 className="text-2xl font-bold text-gray-900">Set up email forwarding</h2>
             </div>
-            <p className="text-gray-700 mb-4">In Gmail, set up an automatic filter so school emails forward to SchoolBrief:</p>
-            
-            <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2">
-              <li>Open Gmail → click the cog icon → <strong>See all settings</strong></li>
-              <li>Click the <strong>Filters and Blocked Addresses</strong> tab</li>
-              <li>Click <strong>Create a new filter</strong></li>
-              <li>In the <strong>From</strong> field, enter your school's email domain (e.g. <code className="bg-gray-100 px-2 py-1 rounded text-sm">*@yourschool.sch.uk</code>)</li>
-              <li>Click <strong>Create filter</strong></li>
-              <li>Tick <strong>Forward it to</strong> and add your SchoolBrief address</li>
-              <li>You'll need to verify the forwarding address once — we'll send you a confirmation code</li>
-              <li>Click <strong>Create filter</strong></li>
-            </ol>
+            <p className="text-gray-700 mb-4">Set up an automatic rule so school emails forward to SchoolBrief. Choose your email provider:</p>
+
+            <div className="bg-white border rounded-lg p-5 mb-4">
+              <h3 className="font-semibold text-gray-900 mb-3">📧 Gmail</h3>
+              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
+                <li>Open Gmail → click the cog icon → <strong>See all settings</strong></li>
+                <li>Click the <strong>Filters and Blocked Addresses</strong> tab</li>
+                <li>Click <strong>Create a new filter</strong></li>
+                <li>In the <strong>From</strong> field, enter your school's email domain (e.g. <code className="bg-gray-100 px-2 py-1 rounded text-xs">*@yourschool.sch.uk</code>)</li>
+                <li>Click <strong>Create filter</strong></li>
+                <li>Tick <strong>Forward it to</strong> and add your SchoolBrief address</li>
+                <li>You'll need to verify the forwarding address once — we'll send you a confirmation code</li>
+                <li>Click <strong>Create filter</strong></li>
+              </ol>
+            </div>
+
+            <div className="bg-white border rounded-lg p-5 mb-4">
+              <h3 className="font-semibold text-gray-900 mb-3">📨 Outlook / Hotmail</h3>
+              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
+                <li>Open Outlook → click the cog icon (top right) → <strong>View all Outlook settings</strong></li>
+                <li>Go to <strong>Mail</strong> → <strong>Rules</strong></li>
+                <li>Click <strong>Add new rule</strong></li>
+                <li>Name it "Forward to SchoolBrief"</li>
+                <li>Set a condition: <strong>From</strong> → enter your school's email address or domain</li>
+                <li>Set an action: <strong>Forward to</strong> → enter your SchoolBrief address</li>
+                <li>Click <strong>Save</strong></li>
+              </ol>
+              <p className="text-xs text-gray-500 mt-3">Note: Outlook doesn't support wildcard forwarding (like <code>*@school.uk</code>) — you'll need to add the specific sender address, or add a rule per sender.</p>
+            </div>
+
+            <div className="bg-white border rounded-lg p-5">
+              <h3 className="font-semibold text-gray-900 mb-3">🍎 Apple Mail / iCloud</h3>
+              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
+                <li>Log in to <strong>icloud.com</strong> → open Mail</li>
+                <li>Click the cog icon → <strong>Rules</strong></li>
+                <li>Click <strong>Add a Rule</strong></li>
+                <li>Set condition: <strong>If a message is from</strong> → your school's email</li>
+                <li>Set action: <strong>Forward to</strong> → your SchoolBrief address</li>
+                <li>Click <strong>Add Rule</strong></li>
+              </ol>
+            </div>
 
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4 rounded">
               <p className="text-sm text-blue-900"><strong>Tip:</strong> Not sure what your school's email domain is? Look at a recent email from them — it's whatever comes after the @ sign.</p>
