@@ -41,7 +41,25 @@ const { data: children } = await supabase
   .from('children')
   .select('*')
   .eq('user_id', user.id)
+// Get upcoming events already in the database (next 60 days)
+const today = new Date().toISOString().split('T')[0]
+const sixtyDaysOut = new Date()
+sixtyDaysOut.setDate(sixtyDaysOut.getDate() + 60)
+const sixtyDaysStr = sixtyDaysOut.toISOString().split('T')[0]
 
+const { data: existingEvents } = await supabase
+  .from('events')
+  .select('title, event_date, description')
+  .eq('user_id', user.id)
+  .gte('event_date', today)
+  .lte('event_date', sixtyDaysStr)
+  .order('event_date', { ascending: true })
+
+const existingContext = existingEvents && existingEvents.length > 0
+  ? `EXISTING EVENTS already in this parent's calendar (do NOT extract these again):\n${existingEvents.map((e: any) => `- ${e.event_date}: ${e.title} (${e.description})`).join('\n')}`
+  : 'No existing events in calendar yet.'
+
+console.log('Existing events:', existingEvents?.length || 0)
 const childrenContext = children && children.length > 0
   ? `The parent has the following children:\n${children.map((c: any) => `- ${c.name} (${c.year_level})`).join('\n')}`
   : 'No children registered — include all events.'
@@ -76,9 +94,11 @@ console.log('Children:', childrenContext)
 ${childrenContext}
 
 Extract any events, deadlines, or reminders from this email AND any attached PDFs. Follow these rules:
+- IMPORTANT: If an event is already in the EXISTING EVENTS list above (matching by approximate title and date), DO NOT extract it again. Only extract genuinely new events or events with significantly updated information (e.g. cancellation, time change, new payment deadline)
 - If the event is clearly for a specific year group that NONE of the children are in, skip it entirely
 - If the event mentions a child's name that matches one of the children above, include their name in the title
 - If the event is for all years or year group is unspecified, include it
+- If something is informational only (a school policy, a general notice, no specific date attached), still include it but use the date the email arrived as the event_date and clearly mark action_required as false
 
 For each relevant event return:
 - title: short name of the event, include child's name if relevant (e.g. "Emma — Book Fair")
