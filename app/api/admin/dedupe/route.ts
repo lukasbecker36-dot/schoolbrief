@@ -85,7 +85,10 @@ Return ONLY a JSON object like this, no other text:
         })
 
         const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}'
-        const cleanJson = responseText.replace(/```json\n?/g, '').replace(/```/g, '').trim()
+        let cleanJson = responseText.replace(/```json\n?/g, '').replace(/```/g, '').trim()
+// Extract just the JSON object — sometimes Claude adds trailing text
+const jsonMatch = cleanJson.match(/\{[\s\S]*\}/)
+if (jsonMatch) cleanJson = jsonMatch[0]
         const result = JSON.parse(cleanJson)
 
         const idsToDelete: string[] = result.delete || []
