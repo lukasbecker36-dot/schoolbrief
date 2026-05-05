@@ -36,42 +36,45 @@ export async function POST(req: Request) {
     }
 
     console.log('Found user:', user.email)
+
     // Get the user's children
-const { data: children } = await supabase
-  .from('children')
-  .select('*')
-  .eq('user_id', user.id)
-// Get upcoming events already in the database (next 60 days)
-const today = new Date().toISOString().split('T')[0]
-const sixtyDaysOut = new Date()
-sixtyDaysOut.setDate(sixtyDaysOut.getDate() + 60)
-const sixtyDaysStr = sixtyDaysOut.toISOString().split('T')[0]
+    const { data: children } = await supabase
+      .from('children')
+      .select('*')
+      .eq('user_id', user.id)
 
-const { data: existingEvents } = await supabase
-  .from('events')
-  .select('title, event_date, description')
-  .eq('user_id', user.id)
-  .gte('event_date', today)
-  .lte('event_date', sixtyDaysStr)
-  .order('event_date', { ascending: true })
+    // Get upcoming events already in the database (next 60 days)
+    const todayStr = new Date().toISOString().split('T')[0]
+    const sixtyDaysOut = new Date()
+    sixtyDaysOut.setDate(sixtyDaysOut.getDate() + 60)
+    const sixtyDaysStr = sixtyDaysOut.toISOString().split('T')[0]
 
-const existingContext = existingEvents && existingEvents.length > 0
-  ? `EXISTING EVENTS already in this parent's calendar (do NOT extract these again):\n${existingEvents.map((e: any) => `- ${e.event_date}: ${e.title} (${e.description})`).join('\n')}`
-  : 'No existing events in calendar yet.'
+    const { data: existingEvents } = await supabase
+      .from('events')
+      .select('title, event_date, description')
+      .eq('user_id', user.id)
+      .gte('event_date', todayStr)
+      .lte('event_date', sixtyDaysStr)
+      .order('event_date', { ascending: true })
 
-console.log('Existing events:', existingEvents?.length || 0)
-const childrenContext = children && children.length > 0
-  ? `The parent has the following children:\n${children.map((c: any) => `- ${c.name} (${c.year_level}${c.school_name ? `, ${c.school_name}` : ''})`).join('\n')}`
-  : 'No children registered — include all events.'
+    const existingContext = existingEvents && existingEvents.length > 0
+      ? `EXISTING EVENTS already in this parent's calendar (do NOT extract these again):\n${existingEvents.map((e: any) => `- ${e.event_date}: ${e.title} (${e.description})`).join('\n')}`
+      : 'No existing events in calendar yet.'
 
-console.log('Children:', childrenContext)
+    console.log('Existing events:', existingEvents?.length || 0)
+
+    const childrenContext = children && children.length > 0
+      ? `The parent has the following children:\n${children.map((c: any) => `- ${c.name} (${c.year_level}${c.school_name ? `, ${c.school_name}` : ''})`).join('\n')}`
+      : 'No children registered — include all events.'
+
+    console.log('Children:', childrenContext)
 
     // Build the content array for Claude — text + any PDF attachments
     const content: any[] = []
 
     // Add PDF attachments first (Claude recommends docs before text)
     const pdfAttachments = (parsed.attachments || []).filter(
-      a => a.contentType === 'application/pdf' || a.filename?.toLowerCase().endsWith('.pdf')
+      (a: any) => a.contentType === 'application/pdf' || a.filename?.toLowerCase().endsWith('.pdf')
     )
 
     for (const pdf of pdfAttachments) {
@@ -168,75 +171,74 @@ Email body: ${emailText}`
     })
 
     const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}'
-console.log('Claude response:', responseText)
+    console.log('Claude response:', responseText)
 
-let cleanJson = responseText.replace(/```json\n?/g, '').replace(/```/g, '').trim()
-const jsonMatch = cleanJson.match(/\{[\s\S]*\}/)
-if (jsonMatch) cleanJson = jsonMatch[0]
+    let cleanJson = responseText.replace(/```json\n?/g, '').replace(/```/g, '').trim()
+    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/)
+    if (jsonMatch) cleanJson = jsonMatch[0]
 
-const result = JSON.parse(cleanJson)
-const events = result.events || []
-const notices = result.notices || []
-const learning = result.learning || []
+    const result = JSON.parse(cleanJson)
+    const events = result.events || []
+    const notices = result.notices || []
+    const learning = result.learning || []
 
-console.log(`Extracted: ${events.length} events, ${notices.length} notices, ${learning.length} learning`)
+    console.log(`Extracted: ${events.length} events, ${notices.length} notices, ${learning.length} learning`)
 
-// Save events
-for (const event of events) {
-  await supabase.from('events').insert({
-    user_id: user.id,
-    title: event.title,
-    event_date: event.event_date,
-    description: event.description,
-    action_required: event.action_required,
-    source_email_subject: subject,
-    school_name: event.school_name || null
-  })
-}
-
-// Save notices and learning
-const today = new Date()
-for (const notice of [...notices, ...learning]) {
-  // For learning, delete the previous one for this child first
-  if (notice.category === 'learning' && notice.child_name) {
-    const child = children?.find((c: any) => c.name === notice.child_name)
-    if (child) {
-      await supabase
-        .from('notices')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('child_id', child.id)
-        .eq('category', 'learning')
-      
-      const expiresAt = new Date(today)
-      expiresAt.setDate(today.getDate() + (notice.expires_in_days || 7))
-
-      await supabase.from('notices').insert({
+    // Save events
+    for (const event of events) {
+      await supabase.from('events').insert({
         user_id: user.id,
-        child_id: child.id,
-        school_name: notice.school_name || null,
-        category: notice.category,
-        title: notice.title,
-        content: notice.content,
-        expires_at: expiresAt.toISOString().split('T')[0]
+        title: event.title,
+        event_date: event.event_date,
+        description: event.description,
+        action_required: event.action_required,
+        source_email_subject: subject,
+        school_name: event.school_name || null
       })
     }
-  } else {
-    const expiresAt = new Date(today)
-    expiresAt.setDate(today.getDate() + (notice.expires_in_days || 1))
 
-    await supabase.from('notices').insert({
-      user_id: user.id,
-      school_name: notice.school_name || null,
-      category: notice.category,
-      title: notice.title,
-      content: notice.content,
-      expires_at: expiresAt.toISOString().split('T')[0]
-    })
-  }
-}
+    // Save notices and learning
+    for (const notice of [...notices, ...learning]) {
+      if (notice.category === 'learning' && notice.child_name) {
+        const child = children?.find((c: any) => c.name === notice.child_name)
+        if (child) {
+          // Delete previous learning entry for this child
+          await supabase
+            .from('notices')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('child_id', child.id)
+            .eq('category', 'learning')
 
-console.log('✅ Done!')
+          const expiresAt = new Date()
+          expiresAt.setDate(expiresAt.getDate() + (notice.expires_in_days || 7))
+
+          await supabase.from('notices').insert({
+            user_id: user.id,
+            child_id: child.id,
+            school_name: notice.school_name || null,
+            category: notice.category,
+            title: notice.title,
+            content: notice.content,
+            expires_at: expiresAt.toISOString().split('T')[0]
+          })
+        }
+      } else {
+        const expiresAt = new Date()
+        expiresAt.setDate(expiresAt.getDate() + (notice.expires_in_days || 1))
+
+        await supabase.from('notices').insert({
+          user_id: user.id,
+          school_name: notice.school_name || null,
+          category: notice.category,
+          title: notice.title,
+          content: notice.content,
+          expires_at: expiresAt.toISOString().split('T')[0]
+        })
+      }
+    }
+
+    console.log('✅ Done!')
     return new Response('ok', { status: 200 })
 
   } catch (err) {

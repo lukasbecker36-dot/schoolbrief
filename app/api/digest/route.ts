@@ -24,18 +24,18 @@ export async function GET(req: Request) {
   sevenDays.setDate(today.getDate() + 7)
   const sevenDaysStr = sevenDays.toISOString().split('T')[0]
 
-  const thirtyDays = new Date(today)
-  thirtyDays.setDate(today.getDate() + 30)
-  const thirtyDaysStr = thirtyDays.toISOString().split('T')[0]
-
   const fourteenDays = new Date(today)
   fourteenDays.setDate(today.getDate() + 14)
   const fourteenDaysStr = fourteenDays.toISOString().split('T')[0]
 
+  const thirtyDays = new Date(today)
+  thirtyDays.setDate(today.getDate() + 30)
+  const thirtyDaysStr = thirtyDays.toISOString().split('T')[0]
+
   let emailsSent = 0
 
   for (const user of users) {
-    // Get all upcoming events for next 30 days
+    // Get all upcoming events
     const { data: allEvents } = await supabase
       .from('events')
       .select('*')
@@ -44,28 +44,37 @@ export async function GET(req: Request) {
       .lte('event_date', thirtyDaysStr)
       .order('event_date', { ascending: true })
 
-    if (!allEvents || allEvents.length === 0) continue
+    // Get active notices and learning
+    const { data: allNotices } = await supabase
+      .from('notices')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('expires_at', todayStr)
+      .order('category', { ascending: true })
+      .order('created_at', { ascending: false })
 
-    // Section 1: This week (next 7 days)
-    const thisWeek = allEvents.filter(e => 
-      e.event_date <= sevenDaysStr
-    )
+    const hasContent = (allEvents && allEvents.length > 0) || 
+                       (allNotices && allNotices.length > 0)
+    if (!hasContent) continue
 
-    // Section 2: Action needed soon (action_required, next 14 days, not already in this week)
-    const actionsNeeded = allEvents.filter(e => 
-      e.action_required && 
-      e.event_date > sevenDaysStr && 
+    // Split events into sections
+    const thisWeek = (allEvents || []).filter(e => e.event_date <= sevenDaysStr)
+    const actionsNeeded = (allEvents || []).filter(e =>
+      e.action_required &&
+      e.event_date > sevenDaysStr &&
       e.event_date <= fourteenDaysStr
     )
-
-    // Section 3: Looking ahead (8-30 days, non action items not in this week)
-    const lookingAhead = allEvents.filter(e => 
-      e.event_date > sevenDaysStr && 
+    const lookingAhead = (allEvents || []).filter(e =>
+      e.event_date > sevenDaysStr &&
       e.event_date <= thirtyDaysStr &&
-      !actionsNeeded.includes(e)
+      !actionsNeeded.find((a: any) => a.id === e.id)
     )
 
-    const emailBody = formatDigest(thisWeek, actionsNeeded, lookingAhead)
+    // Split notices into types
+    const notices = (allNotices || []).filter(n => n.category === 'notice')
+    const learning = (allNotices || []).filter(n => n.category === 'learning')
+
+    const emailBody = formatDigest(thisWeek, actionsNeeded, lookingAhead, notices, learning)
 
     await resend.emails.send({
       from: 'SchoolBrief <digest@schoolbrief.uk>',
@@ -82,36 +91,44 @@ export async function GET(req: Request) {
 }
 
 function formatDate(date: Date) {
-  return date.toLocaleDateString('en-GB', { 
-    weekday: 'long', 
-    day: 'numeric', 
-    month: 'long' 
+  return date.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
   })
 }
 
 function formatEventDate(dateStr: string) {
   const date = new Date(dateStr + 'T00:00:00')
-  return date.toLocaleDateString('en-GB', { 
-    weekday: 'long', 
-    day: 'numeric', 
-    month: 'long' 
+  return date.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
   })
 }
 
 function formatShortDate(dateStr: string) {
   const date = new Date(dateStr + 'T00:00:00')
-  return date.toLocaleDateString('en-GB', { 
-    day: 'numeric', 
-    month: 'short' 
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short'
   })
+}
+
+function sectionHeading(icon: string, title: string) {
+  return `
+    <tr>
+      <td style="padding: 24px 0 8px 0; border-top: 1px solid #eee;">
+        <h2 style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #888; margin: 0;">${icon} ${title}</h2>
+      </td>
+    </tr>
+  `
 }
 
 function renderEventGroup(events: any[]) {
   const grouped: { [key: string]: any[] } = {}
   for (const event of events) {
-    if (!grouped[event.event_date]) {
-      grouped[event.event_date] = []
-    }
+    if (!grouped[event.event_date]) grouped[event.event_date] = []
     grouped[event.event_date].push(event)
   }
 
@@ -120,7 +137,7 @@ function renderEventGroup(events: any[]) {
     .map(([date, dayEvents]) => {
       const eventItems = dayEvents.map(e => `
         <tr>
-          <td style="padding: 6px 0; border-bottom: 1px solid #f0f0f0;">
+          <td style="padding: 6px 0; border-bottom: 1px solid #f5f5f5;">
             <strong style="color: #1a1a1a;">${e.title}</strong>
             ${e.action_required ? '<span style="background:#fff3cd;color:#856404;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:8px;">Action needed</span>' : ''}
             <br>
@@ -131,7 +148,7 @@ function renderEventGroup(events: any[]) {
 
       return `
         <tr>
-          <td style="padding: 16px 0 6px 0;">
+          <td style="padding: 14px 0 4px 0;">
             <strong style="font-size: 15px; color: #2563eb;">${formatEventDate(date)}</strong>
           </td>
         </tr>
@@ -143,7 +160,7 @@ function renderEventGroup(events: any[]) {
 function renderListGroup(events: any[]) {
   return events.map(e => `
     <tr>
-      <td style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+      <td style="padding: 8px 0; border-bottom: 1px solid #f5f5f5;">
         <strong style="color: #2563eb; font-size: 13px;">${formatShortDate(e.event_date)}</strong>
         <strong style="color: #1a1a1a; margin-left: 8px;">${e.title}</strong>
         ${e.action_required ? '<span style="background:#fff3cd;color:#856404;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:8px;">Action needed</span>' : ''}
@@ -154,17 +171,46 @@ function renderListGroup(events: any[]) {
   `).join('')
 }
 
-function formatDigest(thisWeek: any[], actionsNeeded: any[], lookingAhead: any[]) {
-  const sectionStyle = `padding: 24px 0 8px 0; border-top: 1px solid #eee; margin-top: 16px;`
-  const sectionHeading = (icon: string, title: string) => `
+function renderNotices(notices: any[]) {
+  return notices.map(n => `
     <tr>
-      <td style="${sectionStyle}">
-        <h2 style="font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: #888; margin: 0;">${icon} ${title}</h2>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f5f5f5;">
+        <strong style="color: #1a1a1a;">${n.title}</strong><br>
+        <span style="color: #666; font-size: 14px;">${n.content}</span>
       </td>
     </tr>
-  `
+  `).join('')
+}
 
+function renderLearning(learning: any[]) {
+  return learning.map(n => `
+    <tr>
+      <td style="padding: 8px 0; border-bottom: 1px solid #f5f5f5;">
+        <strong style="color: #1a1a1a;">${n.title}</strong><br>
+        <span style="color: #666; font-size: 14px;">${n.content}</span>
+      </td>
+    </tr>
+  `).join('')
+}
+
+function formatDigest(
+  thisWeek: any[],
+  actionsNeeded: any[],
+  lookingAhead: any[],
+  notices: any[],
+  learning: any[]
+) {
   let body = ''
+
+  if (notices.length > 0) {
+    body += sectionHeading('📌', 'Notices')
+    body += renderNotices(notices)
+  }
+
+  if (learning.length > 0) {
+    body += sectionHeading('📚', 'This week\'s learning')
+    body += renderLearning(learning)
+  }
 
   if (thisWeek.length > 0) {
     body += sectionHeading('📅', 'This week')
@@ -182,7 +228,7 @@ function formatDigest(thisWeek: any[], actionsNeeded: any[], lookingAhead: any[]
   }
 
   if (!body) {
-    body = `<tr><td style="padding: 24px 0;"><p style="color: #666;">No upcoming events this week. Enjoy the quiet!</p></td></tr>`
+    body = `<tr><td style="padding: 24px 0;"><p style="color: #666;">No school news today. Enjoy the quiet!</p></td></tr>`
   }
 
   return `
@@ -193,13 +239,13 @@ function formatDigest(thisWeek: any[], actionsNeeded: any[], lookingAhead: any[]
         <tr>
           <td style="border-bottom: 3px solid #2563eb; padding-bottom: 16px;">
             <h1 style="margin: 0; font-size: 24px; color: #2563eb;">SchoolBrief</h1>
-            <p style="margin: 4px 0 0 0; color: #666; font-size: 14px;">Your week ahead at school</p>
+            <p style="margin: 4px 0 0 0; color: #666; font-size: 14px;">Your daily school summary</p>
           </td>
         </tr>
         ${body}
         <tr>
           <td style="padding-top: 32px; border-top: 1px solid #eee; color: #999; font-size: 12px;">
-            You're receiving this because you signed up at schoolbrief.uk
+            You're receiving this because you signed up at schoolbrief.uk · <a href="https://schoolbrief.uk/manage" style="color: #999;">Manage your account</a>
           </td>
         </tr>
       </table>
