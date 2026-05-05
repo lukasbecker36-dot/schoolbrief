@@ -61,7 +61,7 @@ const existingContext = existingEvents && existingEvents.length > 0
 
 console.log('Existing events:', existingEvents?.length || 0)
 const childrenContext = children && children.length > 0
-  ? `The parent has the following children:\n${children.map((c: any) => `- ${c.name} (${c.year_level})`).join('\n')}`
+  ? `The parent has the following children:\n${children.map((c: any) => `- ${c.name} (${c.year_level}${c.school_name ? `, ${c.school_name}` : ''})`).join('\n')}`
   : 'No children registered — include all events.'
 
 console.log('Children:', childrenContext)
@@ -94,19 +94,34 @@ console.log('Children:', childrenContext)
 ${childrenContext}
 
 Extract any events, deadlines, or reminders from this email AND any attached PDFs. Follow these rules:
-- IMPORTANT: If an event is already in the EXISTING EVENTS list above (matching by approximate title and date), DO NOT extract it again. Only extract genuinely new events or events with significantly updated information (e.g. cancellation, time change, new payment deadline)
-- If the event is clearly for a specific year group that NONE of the children are in, skip it entirely
-- If the event mentions a child's name that matches one of the children above, include their name in the title
-- If the event is for all years or year group is unspecified, include it
-- If something is informational only (a school policy, a general notice, no specific date attached), still include it but use the date the email arrived as the event_date and clearly mark action_required as false
 
-For each relevant event return:
-- title: short name of the event, include child's name if relevant (e.g. "Emma — Book Fair")
-- event_date: the date in YYYY-MM-DD format (today is ${new Date().toISOString().split('T')[0]})
-- description: one sentence summary including any actions the parent needs to take
-- action_required: true if the parent needs to do something (pay money, return a form, bring something), false otherwise
+SCHOOL IDENTIFICATION:
+- Identify which school this email is from by looking at the email subject, body header, or any school name mentioned. Store this as the school name for all events extracted from this email.
+- The sender email domain may be a third-party platform (e.g. parentmail.co.uk, schoop.co.uk) — in that case, look for the school name in the email content itself.
 
-Return ONLY a JSON array, no other text. If there are no relevant events, return an empty array [].
+YEAR GROUP AND CHILD MATCHING:
+- If an event mentions a specific year group, check if any of the parent's children are in that year group AT THAT SCHOOL
+- If the year group clearly does not match any child at that school, SKIP the event entirely
+- If the event is for all year groups, or year group is unspecified, INCLUDE it
+- Extract year-specific events as SEPARATE events — never combine two year groups into one event entry
+- If an event matches a specific child, prefix the title with their name (e.g. "James — Book Fair")
+
+CONTEXT INHERITANCE:
+- If a deadline or reminder is clearly related to a specific trip or event mentioned elsewhere in the email, inherit the year group and child context from that event
+- For example, if the email is about a Year 5 trip and mentions a permission form deadline, tag the deadline with the Year 5 child's name too
+
+SCHOOL ATTRIBUTION:
+- If an event has no specific year group or child attached, include the school name in the title so parents with multiple schools know which school it refers to (e.g. "Windmills: Mini Marathon" or "Hassocks Infants: Walk to School Week")
+- If the child's name is already in the title, you don't need to add the school name too
+
+Return ONLY a JSON array with these fields per event, no other text:
+- title: event name following the rules above
+- event_date: YYYY-MM-DD format (today is ${new Date().toISOString().split('T')[0]})
+- description: one sentence summary including any parent actions needed
+- action_required: true if parent needs to do something, false otherwise
+- school_name: the school this event is from
+
+If there are no relevant events, return [].
 
 Email subject: ${subject}
 Email body: ${emailText}`
@@ -126,15 +141,16 @@ Email body: ${emailText}`
     console.log('Extracted events:', events.length)
 
     for (const event of events) {
-      await supabase.from('events').insert({
-        user_id: user.id,
-        title: event.title,
-        event_date: event.event_date,
-        description: event.description,
-        action_required: event.action_required,
-        source_email_subject: subject
-      })
-    }
+  await supabase.from('events').insert({
+    user_id: user.id,
+    title: event.title,
+    event_date: event.event_date,
+    description: event.description,
+    action_required: event.action_required,
+    source_email_subject: subject,
+    school_name: event.school_name || null
+  })
+}
 
     console.log('✅ Done! Saved', events.length, 'events')
     return new Response('ok', { status: 200 })
