@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 const YEAR_LEVELS = [
   'Nursery',
@@ -17,6 +17,7 @@ export default function Manage() {
   const [children, setChildren] = useState<any[]>([])
   const [newName, setNewName] = useState('')
   const [newYear, setNewYear] = useState('Year 1')
+  const [newSchool, setNewSchool] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -47,12 +48,13 @@ export default function Manage() {
     const res = await fetch('/api/manage/children', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, name: newName, yearLevel: newYear })
+      body: JSON.stringify({ userId: user.id, name: newName, yearLevel: newYear, schoolName: newSchool })
     })
     const data = await res.json()
     if (data.child) {
       setChildren([...children, data.child])
       setNewName('')
+      setNewSchool('')
       setSuccess('Child added!')
       setTimeout(() => setSuccess(''), 3000)
     } else {
@@ -118,7 +120,7 @@ export default function Manage() {
       <div className="max-w-xl mx-auto">
         <a href="/" className="text-blue-600 text-sm mb-6 inline-block">← Back</a>
         <h1 className="text-2xl font-bold mb-1 text-gray-900">Your children</h1>
-        <p className="text-gray-500 text-sm mb-8">SchoolBrief will filter events to match your children's year levels.</p>
+        <p className="text-gray-500 text-sm mb-8">SchoolBrief will filter events to match your children's year levels and schools.</p>
 
         {success && <p className="text-green-600 text-sm mb-4 bg-green-50 p-3 rounded-lg">{success}</p>}
         {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
@@ -133,6 +135,7 @@ export default function Manage() {
               <div className="text-2xl">🧒</div>
               <div className="flex-1">
                 <p className="font-medium text-gray-900">{child.name}</p>
+                <p className="text-xs text-gray-500 mt-1">{child.school_name || 'No school set'}</p>
                 <select
                   value={child.year_level}
                   onChange={e => handleUpdateYear(child.id, e.target.value)}
@@ -161,6 +164,13 @@ export default function Manage() {
             placeholder="Child's name"
             value={newName}
             onChange={e => setNewName(e.target.value)}
+            className="w-full border rounded-lg p-3 mb-3 text-sm text-gray-900 placeholder-gray-500"
+          />
+          <input
+            type="text"
+            placeholder="School name (e.g. Windmills Junior School)"
+            value={newSchool}
+            onChange={e => setNewSchool(e.target.value)}
             className="w-full border rounded-lg p-3 mb-3 text-sm text-gray-900 placeholder-gray-500"
           />
           <select

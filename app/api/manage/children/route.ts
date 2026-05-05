@@ -1,11 +1,11 @@
 import { supabase } from '@/lib/supabase'
 
 export async function POST(req: Request) {
-  const { userId, name, yearLevel } = await req.json()
+  const { userId, name, yearLevel, schoolName } = await req.json()
 
   const { data: child, error } = await supabase
     .from('children')
-    .insert({ user_id: userId, name, year_level: yearLevel })
+    .insert({ user_id: userId, name, year_level: yearLevel, school_name: schoolName })
     .select()
     .single()
 
