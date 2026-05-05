@@ -89,40 +89,74 @@ console.log('Children:', childrenContext)
     // Add the text prompt
     content.push({
       type: 'text',
-      text: `You are helping extract school events from a parent email newsletter.
+      text: `You are helping extract useful information from school emails for a parent.
 
 ${childrenContext}
 
-Extract any events, deadlines, or reminders from this email AND any attached PDFs. Follow these rules:
+${existingContext}
 
-SCHOOL IDENTIFICATION:
-- Identify which school this email is from by looking at the email subject, body header, or any school name mentioned. Store this as the school name for all events extracted from this email.
-- The sender email domain may be a third-party platform (e.g. parentmail.co.uk, schoop.co.uk) — in that case, look for the school name in the email content itself.
+Identify which school this email is from by looking at the email subject, body header, or any school name mentioned. The sender email domain may be a third-party platform (e.g. parentmail.co.uk) — in that case look for the school name in the email content itself.
 
-YEAR GROUP AND CHILD MATCHING:
-- If an event mentions a specific year group, check if any of the parent's children are in that year group AT THAT SCHOOL
-- If the year group clearly does not match any child at that school, SKIP the event entirely
-- If the event is for all year groups, or year group is unspecified, INCLUDE it
-- Extract year-specific events as SEPARATE events — never combine two year groups into one event entry
-- If an event matches a specific child, prefix the title with their name (e.g. "James — Book Fair")
+You must classify each piece of information into one of three categories:
 
-CONTEXT INHERITANCE:
-- If a deadline or reminder is clearly related to a specific trip or event mentioned elsewhere in the email, inherit the year group and child context from that event
-- For example, if the email is about a Year 5 trip and mentions a permission form deadline, tag the deadline with the Year 5 child's name too
+CATEGORY 1 — EVENTS (things happening on a specific future date)
+Examples: trips, sports day, bake off, assemblies, performances, fundraisers, deadlines
+Rules:
+- Extract year-specific events as SEPARATE events — never combine two year groups into one
+- If an event is clearly for a year group that NONE of the children attend at that school, SKIP it
+- If the event matches a specific child, prefix the title with their name (e.g. "James — Brighton Pavilion Trip")
+- If no specific child, prefix with school name (e.g. "Windmills: Mini Marathon")
+- Inherit year/child context into related deadlines (e.g. permission form for a Year 5 trip → tag to Year 5 child)
+- Do NOT re-extract events already in the EXISTING EVENTS list unless there is new information
 
-SCHOOL ATTRIBUTION:
-- If an event has no specific year group or child attached, include the school name in the title so parents with multiple schools know which school it refers to (e.g. "Windmills: Mini Marathon" or "Hassocks Infants: Walk to School Week")
-- If the child's name is already in the title, you don't need to add the school name too
+CATEGORY 2 — NOTICES (short-term announcements, no specific future date)
+Examples: staffing changes, policy updates (Pokémon ban), road safety reminders, general school news
+Rules:
+- These are one-off announcements that are relevant today but not ongoing
+- Include school name in title so parent knows which school it refers to
+- expires_in_days: 1 (they expire after 1 day)
 
-Return ONLY a JSON array with these fields per event, no other text:
-- title: event name following the rules above
-- event_date: YYYY-MM-DD format (today is ${new Date().toISOString().split('T')[0]})
-- description: one sentence summary including any parent actions needed
-- action_required: true if parent needs to do something, false otherwise
-- school_name: the school this event is from
+CATEGORY 3 — LEARNING (weekly overviews for a specific child)
+Examples: "Year 2 Weekly Overview", "Reception Weekly Wonders", class newsletters
+Rules:
+- These replace the previous week's overview for that child
+- Always tag to the specific child by name
+- expires_in_days: 7 (they expire after one week)
+- Summarise the key learning themes in 2-3 sentences in the content field
 
-If there are no relevant events, return [].
+Return ONLY a JSON object in this exact format, no other text:
+{
+  "events": [
+    {
+      "title": "event title",
+      "event_date": "YYYY-MM-DD",
+      "description": "one sentence summary",
+      "action_required": true/false,
+      "school_name": "school name"
+    }
+  ],
+  "notices": [
+    {
+      "title": "notice title",
+      "content": "one paragraph summary",
+      "school_name": "school name",
+      "category": "notice",
+      "expires_in_days": 1
+    }
+  ],
+  "learning": [
+    {
+      "title": "child name — Week of [date]",
+      "content": "2-3 sentence summary of this week's learning",
+      "child_name": "exact child name from the list above",
+      "school_name": "school name",
+      "category": "learning",
+      "expires_in_days": 7
+    }
+  ]
+}
 
+Today's date is ${new Date().toISOString().split('T')[0]}.
 Email subject: ${subject}
 Email body: ${emailText}`
     })
@@ -133,14 +167,22 @@ Email body: ${emailText}`
       messages: [{ role: 'user', content }]
     })
 
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : '[]'
-    console.log('Claude response:', responseText)
+    const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}'
+console.log('Claude response:', responseText)
 
-    const cleanJson = responseText.replace(/```json\n?/g, '').replace(/```/g, '').trim()
-    const events = JSON.parse(cleanJson)
-    console.log('Extracted events:', events.length)
+let cleanJson = responseText.replace(/```json\n?/g, '').replace(/```/g, '').trim()
+const jsonMatch = cleanJson.match(/\{[\s\S]*\}/)
+if (jsonMatch) cleanJson = jsonMatch[0]
 
-    for (const event of events) {
+const result = JSON.parse(cleanJson)
+const events = result.events || []
+const notices = result.notices || []
+const learning = result.learning || []
+
+console.log(`Extracted: ${events.length} events, ${notices.length} notices, ${learning.length} learning`)
+
+// Save events
+for (const event of events) {
   await supabase.from('events').insert({
     user_id: user.id,
     title: event.title,
@@ -152,7 +194,49 @@ Email body: ${emailText}`
   })
 }
 
-    console.log('✅ Done! Saved', events.length, 'events')
+// Save notices and learning
+const today = new Date()
+for (const notice of [...notices, ...learning]) {
+  // For learning, delete the previous one for this child first
+  if (notice.category === 'learning' && notice.child_name) {
+    const child = children?.find((c: any) => c.name === notice.child_name)
+    if (child) {
+      await supabase
+        .from('notices')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('child_id', child.id)
+        .eq('category', 'learning')
+      
+      const expiresAt = new Date(today)
+      expiresAt.setDate(today.getDate() + (notice.expires_in_days || 7))
+
+      await supabase.from('notices').insert({
+        user_id: user.id,
+        child_id: child.id,
+        school_name: notice.school_name || null,
+        category: notice.category,
+        title: notice.title,
+        content: notice.content,
+        expires_at: expiresAt.toISOString().split('T')[0]
+      })
+    }
+  } else {
+    const expiresAt = new Date(today)
+    expiresAt.setDate(today.getDate() + (notice.expires_in_days || 1))
+
+    await supabase.from('notices').insert({
+      user_id: user.id,
+      school_name: notice.school_name || null,
+      category: notice.category,
+      title: notice.title,
+      content: notice.content,
+      expires_at: expiresAt.toISOString().split('T')[0]
+    })
+  }
+}
+
+console.log('✅ Done!')
     return new Response('ok', { status: 200 })
 
   } catch (err) {
