@@ -70,25 +70,83 @@ export async function POST(req: Request) {
     console.log('Children:', childrenContext)
 
     // Build the content array for Claude — text + any PDF attachments
-    const content: any[] = []
+const content: any[] = []
 
-    // Add PDF attachments first (Claude recommends docs before text)
-    const pdfAttachments = (parsed.attachments || []).filter(
-      (a: any) => a.contentType === 'application/pdf' || a.filename?.toLowerCase().endsWith('.pdf')
-    )
+// Log all attachments for debugging
+for (const a of parsed.attachments || []) {
+  console.log('Attachment:', a.filename, a.contentType)
+}
 
-    for (const pdf of pdfAttachments) {
-      console.log('Including PDF:', pdf.filename)
+// Add PDF attachments first (Claude recommends docs before text)
+const pdfAttachments = (parsed.attachments || []).filter(
+  (a: any) => a.contentType === 'application/pdf' || a.filename?.toLowerCase().endsWith('.pdf')
+)
+
+// Extract text from .eml attachments (forwarded emails)
+let emlText = ''
+const emlAttachments = (parsed.attachments || []).filter(
+  (a: any) => a.contentType === 'message/rfc822' || a.filename?.toLowerCase().endsWith('.eml')
+)
+for (const eml of emlAttachments) {
+  try {
+    const innerParsed = await simpleParser(eml.content)
+    emlText += `\n--- Forwarded email: ${innerParsed.subject} ---\n`
+    emlText += innerParsed.text || ''
+    console.log('Extracted text from .eml attachment:', innerParsed.subject)
+    for (const innerAttachment of innerParsed.attachments || []) {
+      if (innerAttachment.contentType === 'application/pdf' ||
+          innerAttachment.filename?.toLowerCase().endsWith('.pdf')) {
+        console.log('Found PDF inside .eml:', innerAttachment.filename)
+        pdfAttachments.push(innerAttachment)
+      }
+    }
+  } catch (err) {
+    console.error('Error parsing .eml attachment:', err)
+  }
+}
+
+// Push real PDF attachments into content
+for (const pdf of pdfAttachments) {
+  console.log('Including PDF attachment:', pdf.filename)
+  content.push({
+    type: 'document',
+    source: {
+      type: 'base64',
+      media_type: 'application/pdf',
+      data: pdf.content.toString('base64')
+    }
+  })
+}
+
+// Extract PDF URLs from email body and fetch them
+const emailHtml = typeof parsed.html === 'string' ? parsed.html : ''
+const pdfUrlMatches = (emailText + emailHtml).match(/https?:\/\/[^\s"<>]+\.pdf[^\s"<>]*/gi) || []
+const uniquePdfUrls = [...new Set(pdfUrlMatches)]
+console.log('PDF URLs found in email:', uniquePdfUrls.length)
+
+for (const url of uniquePdfUrls) {
+  try {
+    console.log('Fetching PDF from URL:', url)
+    const response = await fetch(url)
+    if (response.ok) {
+      const buffer = await response.arrayBuffer()
+      const base64 = Buffer.from(buffer).toString('base64')
       content.push({
         type: 'document',
         source: {
           type: 'base64',
           media_type: 'application/pdf',
-          data: pdf.content.toString('base64')
+          data: base64
         }
       })
+      console.log('Successfully fetched PDF from URL')
     }
+  } catch (err) {
+    console.error('Failed to fetch PDF from URL:', url, err)
+  }
+}
 
+    
     // Add the text prompt
     content.push({
       type: 'text',
