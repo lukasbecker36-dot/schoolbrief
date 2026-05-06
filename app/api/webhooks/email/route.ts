@@ -316,17 +316,38 @@ Email body: ${emailText}`
           })
         }
       } else {
-        const expiresAt = new Date()
-        expiresAt.setDate(expiresAt.getDate() + (notice.expires_in_days || 1))
+        // Check for similar existing notice to avoid duplicates
+        const todayStr = new Date().toISOString().split('T')[0]
+        const { data: existingNotices } = await supabase
+          .from('notices')
+          .select('title')
+          .eq('user_id', user.id)
+          .eq('category', 'notice')
+          .gte('expires_at', todayStr)
 
-        await supabase.from('notices').insert({
-          user_id: user.id,
-          school_name: notice.school_name || null,
-          category: notice.category,
-          title: notice.title,
-          content: notice.content,
-          expires_at: expiresAt.toISOString().split('T')[0]
+        // Simple duplicate check — if a notice with very similar title exists, skip
+        const similarExists = existingNotices?.some((n: any) => {
+          const existingWords = n.title.toLowerCase().split(' ')
+          const newWords = notice.title.toLowerCase().split(' ')
+          const commonWords = existingWords.filter((w: string) => newWords.includes(w) && w.length > 3)
+          return commonWords.length >= 2
         })
+
+        if (similarExists) {
+          console.log('Skipping duplicate notice:', notice.title)
+        } else {
+          const expiresAt = new Date()
+          expiresAt.setDate(expiresAt.getDate() + (notice.expires_in_days || 1))
+
+          await supabase.from('notices').insert({
+            user_id: user.id,
+            school_name: notice.school_name || null,
+            category: notice.category,
+            title: notice.title,
+            content: notice.content,
+            expires_at: expiresAt.toISOString().split('T')[0]
+          })
+        }
       }
     }
 
