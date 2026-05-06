@@ -209,11 +209,14 @@ Rules:
 - expires_in_days: 1 (they expire after 1 day)
 
 CATEGORY 3 — LEARNING (weekly overviews for a specific child)
-Examples: "Year 2 Weekly Overview", "Reception Weekly Wonders", class newsletters
+Examples: "Weekly Overview", "Weekly Wonders", "This Week in Year 2", "Learning Update"
 Rules:
+- ONLY classify as learning if this email is specifically dedicated to summarising what a child or class has been learning that week
+- Signs it IS a learning overview: lists specific subjects, topics, books, vocabulary, skills, or curriculum areas covered that week; typically sent weekly by a class teacher
+- Signs it is NOT a learning overview: a general school newsletter that mentions activities in passing, an event email that happens to involve learning (e.g. a music week or science day announcement), or a whole-school communication
 - These replace the previous week's overview for that child
-- Always tag to the specific child by name
-- expires_in_days: 7 (they expire after one week)
+- Always tag to the specific child by name using the children list above
+- expires_in_days: 7
 - Summarise the key learning themes in 2-3 sentences in the content field
 
 Return ONLY a JSON object in this exact format, no other text:
