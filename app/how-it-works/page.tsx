@@ -35,7 +35,8 @@ export default function HowItWorks() {
                 <li>In the <strong>From</strong> field, enter your school's email domain (e.g. <code className="bg-gray-100 px-2 py-1 rounded text-xs">*@yourschool.sch.uk</code>)</li>
                 <li>Click <strong>Create filter</strong></li>
                 <li>Tick <strong>Forward it to</strong> and add your SchoolBrief address</li>
-                <li>You'll need to verify the forwarding address once — we'll send you a confirmation code</li>
+<li>Gmail will send a confirmation email to your SchoolBrief address — we'll automatically forward it to your inbox with a clickable confirmation link</li>
+<li>Click the confirmation link in that email to activate forwarding</li>
                 <li>Click <strong>Create filter</strong></li>
               </ol>
             </div>
