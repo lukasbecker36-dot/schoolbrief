@@ -1,6 +1,7 @@
 import { simpleParser } from 'mailparser'
 import { supabase } from '@/lib/supabase'
 import Anthropic from '@anthropic-ai/sdk'
+import { Resend } from 'resend'
 
 export async function POST(req: Request) {
   try {
@@ -36,7 +37,37 @@ export async function POST(req: Request) {
     }
 
     console.log('Found user:', user.email)
+    // Detect Gmail forwarding confirmation email and forward to parent
+const isGmailConfirmation = 
+  (parsed.from?.text?.includes('forwarding-noreply@google.com') ||
+   subject?.toLowerCase().includes('gmail forwarding confirmation') ||
+   subject?.toLowerCase().includes('forwarding confirmation'))
 
+if (isGmailConfirmation) {
+  console.log('📨 Gmail forwarding confirmation detected — forwarding to parent')
+  
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  
+  await resend.emails.send({
+    from: 'SchoolBrief <digest@schoolbrief.uk>',
+    to: user.email,
+    subject: `Action needed: Confirm your Gmail forwarding`,
+    html: `
+      <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="color: #2563eb; font-size: 24px;">SchoolBrief</h1>
+        <p style="color: #1a1a1a;">Almost there! Gmail needs you to confirm that you want to forward emails to SchoolBrief.</p>
+        <p style="color: #1a1a1a;">We've received a confirmation email from Gmail on your behalf. Here are the details:</p>
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          ${parsed.html || `<pre>${parsed.text}</pre>`}
+        </div>
+        <p style="color: #666; font-size: 14px;">Click the confirmation link above to activate forwarding. Once confirmed, your school emails will start flowing into SchoolBrief automatically.</p>
+      </div>
+    `
+  })
+  
+  console.log('✅ Confirmation email forwarded to', user.email)
+  return new Response('ok', { status: 200 })
+}
     // Get the user's children
     const { data: children } = await supabase
       .from('children')
