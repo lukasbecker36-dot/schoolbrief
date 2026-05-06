@@ -111,7 +111,7 @@ export default function HowItWorks() {
             <h2 className="text-2xl font-bold mb-3 text-gray-900">Get in touch</h2>
             <p className="text-gray-700 mb-4 text-sm">Questions, feedback, or running into an issue? Drop me a line:</p>
             <a href="mailto:schoolpulseapp@gmail.com" className="inline-block bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg px-5 py-3 font-medium text-sm">
-              schoolpulseapp@gmail.com
+              schoolbriefapp@gmail.com
             </a>
           </section>
           <section className="text-center pt-8 border-t">
