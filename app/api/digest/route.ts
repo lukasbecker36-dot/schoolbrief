@@ -24,10 +24,6 @@ export async function GET(req: Request) {
   sevenDays.setDate(today.getDate() + 7)
   const sevenDaysStr = sevenDays.toISOString().split('T')[0]
 
-  const fourteenDays = new Date(today)
-  fourteenDays.setDate(today.getDate() + 14)
-  const fourteenDaysStr = fourteenDays.toISOString().split('T')[0]
-
   const thirtyDays = new Date(today)
   thirtyDays.setDate(today.getDate() + 30)
   const thirtyDaysStr = thirtyDays.toISOString().split('T')[0]
@@ -59,22 +55,16 @@ export async function GET(req: Request) {
 
     // Split events into sections
     const thisWeek = (allEvents || []).filter(e => e.event_date <= sevenDaysStr)
-    const actionsNeeded = (allEvents || []).filter(e =>
-      e.action_required &&
-      e.event_date > sevenDaysStr &&
-      e.event_date <= fourteenDaysStr
-    )
     const lookingAhead = (allEvents || []).filter(e =>
       e.event_date > sevenDaysStr &&
-      e.event_date <= thirtyDaysStr &&
-      !actionsNeeded.find((a: any) => a.id === e.id)
+      e.event_date <= thirtyDaysStr
     )
 
     // Split notices into types
     const notices = (allNotices || []).filter(n => n.category === 'notice')
     const learning = (allNotices || []).filter(n => n.category === 'learning')
 
-    const emailBody = formatDigest(thisWeek, actionsNeeded, lookingAhead, notices, learning)
+    const emailBody = formatDigest(thisWeek, lookingAhead, notices, learning)
 
     await resend.emails.send({
       from: 'SchoolBrief <digest@schoolbrief.uk>',
@@ -195,7 +185,6 @@ function renderLearning(learning: any[]) {
 
 function formatDigest(
   thisWeek: any[],
-  actionsNeeded: any[],
   lookingAhead: any[],
   notices: any[],
   learning: any[]
@@ -207,19 +196,14 @@ function formatDigest(
     body += renderNotices(notices)
   }
 
-  if (learning.length > 0) {
-    body += sectionHeading('📚', 'This week\'s learning')
-    body += renderLearning(learning)
-  }
-
   if (thisWeek.length > 0) {
     body += sectionHeading('📅', 'This week')
     body += renderEventGroup(thisWeek)
   }
 
-  if (actionsNeeded.length > 0) {
-    body += sectionHeading('⚠️', 'Action needed soon')
-    body += renderListGroup(actionsNeeded)
+  if (learning.length > 0) {
+    body += sectionHeading('📚', 'This week\'s learning')
+    body += renderLearning(learning)
   }
 
   if (lookingAhead.length > 0) {
