@@ -241,7 +241,7 @@ Return ONLY a JSON object in this exact format, no other text:
   ],
   "learning": [
     {
-      "title": "child name — Week of [date]",
+      "title": "child name — Week of [date as 'D Month YYYY', e.g. '5 May 2026']",
       "content": "2-3 sentence summary of this week's learning",
       "child_name": "exact child name from the list above",
       "school_name": "school name",
