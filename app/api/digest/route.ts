@@ -54,17 +54,21 @@ export async function GET(req: Request) {
     if (!hasContent) continue
 
     // Split events into sections
-    const thisWeek = (allEvents || []).filter(e => e.event_date <= sevenDaysStr)
-    const lookingAhead = (allEvents || []).filter(e =>
+    const schoolEvents = (allEvents || []).filter(e => e.is_school_event !== false)
+    const otherEvents = (allEvents || []).filter(e => e.is_school_event === false)
+
+    const thisWeek = schoolEvents.filter(e => e.event_date <= sevenDaysStr)
+    const lookingAhead = schoolEvents.filter(e =>
       e.event_date > sevenDaysStr &&
       e.event_date <= thirtyDaysStr
     )
+    const otherUpcoming = otherEvents.filter(e => e.event_date <= thirtyDaysStr)
 
     // Split notices into types
     const notices = (allNotices || []).filter(n => n.category === 'notice')
     const learning = (allNotices || []).filter(n => n.category === 'learning')
 
-    const emailBody = formatDigest(thisWeek, lookingAhead, notices, learning)
+    const emailBody = formatDigest(thisWeek, lookingAhead, notices, learning, otherUpcoming)
 
     await resend.emails.send({
       from: 'SchoolBrief <digest@schoolbrief.uk>',
@@ -187,7 +191,8 @@ function formatDigest(
   thisWeek: any[],
   lookingAhead: any[],
   notices: any[],
-  learning: any[]
+  learning: any[],
+  otherEvents: any[]
 ) {
   let body = ''
 
@@ -209,6 +214,11 @@ function formatDigest(
   if (lookingAhead.length > 0) {
     body += sectionHeading('🔭', 'Looking ahead')
     body += renderListGroup(lookingAhead)
+  }
+
+  if (otherEvents.length > 0) {
+    body += sectionHeading('🎉', 'Other events & activities')
+    body += renderListGroup(otherEvents)
   }
 
   if (!body) {

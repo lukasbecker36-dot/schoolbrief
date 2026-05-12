@@ -189,35 +189,45 @@ ${existingContext}
 
 Identify which school this email is from by looking at the email subject, body header, or any school name mentioned. The sender email domain may be a third-party platform (e.g. parentmail.co.uk) — in that case look for the school name in the email content itself.
 
-You must classify each piece of information into one of three categories:
+You must classify each piece of information into one of four categories:
 
-CATEGORY 1 — EVENTS (things happening on a specific future date)
-Examples: trips, sports day, bake off, assemblies, performances, fundraisers, deadlines
+CATEGORY 1 — SCHOOL EVENTS (things organised by the school happening on a specific future date)
+Examples: trips, sports day, bake off, assemblies, performances, fundraisers, deadlines, school-organised clubs
 Rules:
-- Extract year-specific events as SEPARATE events — never combine two year groups into one
-- If an event is clearly for a year group that NONE of the children attend at that school, SKIP it
-- If the event matches a specific child, prefix the title with their name (e.g. "James — Brighton Pavilion Trip")
-- If no specific child, prefix with school name (e.g. "Windmills: Mini Marathon")
+- ONLY include events that are organised and run by the school itself
+- Extract year-specific events as SEPARATE events — never combine two year groups into one entry
+- If an event specifies a year group, ONLY include it if one of the children is in EXACTLY that year group at that school — do not include events for other year groups even if they come from that child's school
+- If the event matches a specific child by year group, prefix the title with their name (e.g. "James — Brighton Pavilion Trip")
+- If no specific child can be identified but it is a whole-school event, prefix with school name (e.g. "Windmills: Mini Marathon")
 - Inherit year/child context into related deadlines (e.g. permission form for a Year 5 trip → tag to Year 5 child)
-- Do NOT re-extract events already in the EXISTING EVENTS list unless there is new information
+- Do NOT re-extract events already in the EXISTING EVENTS list unless there is significantly new information
+- is_school_event: true
 
-CATEGORY 2 — NOTICES (short-term announcements, no specific future date)
-Examples: staffing changes, policy updates (Pokémon ban), road safety reminders, general school news
+CATEGORY 2 — NOTICES (short-term announcements from the school, no specific future date)
+Examples: staffing changes, policy updates, road safety reminders, general school news
 Rules:
-- These are one-off announcements that are relevant today but not ongoing
-- Include school name in title so parent knows which school it refers to
-- expires_in_days: 1 (they expire after 1 day)
+- ONLY include notices from the school itself — not third-party advertisements or community notices
+- These are one-off announcements relevant today but not ongoing
+- Include school name in title
+- expires_in_days: 1
 
 CATEGORY 3 — LEARNING (weekly overviews for a specific child)
-Examples: "Weekly Overview", "Weekly Wonders", "This Week in Year 2", "Learning Update"
+Examples: "Weekly Overview", "Weekly Wonders", "Class Newsletter", "This Week in Year 2"
 Rules:
 - ONLY classify as learning if this email is specifically dedicated to summarising what a child or class has been learning that week
 - Signs it IS a learning overview: lists specific subjects, topics, books, vocabulary, skills, or curriculum areas covered that week; typically sent weekly by a class teacher
-- Signs it is NOT a learning overview: a general school newsletter that mentions activities in passing, an event email that happens to involve learning (e.g. a music week or science day announcement), or a whole-school communication
+- Signs it is NOT a learning overview: a general school newsletter mentioning activities in passing, an event email involving learning activities
 - These replace the previous week's overview for that child
-- Always tag to the specific child by name using the children list above
+- Always tag to the specific child by name
 - expires_in_days: 7
-- Summarise the key learning themes in 2-3 sentences in the content field
+- Summarise the key learning themes in 2-3 sentences
+
+CATEGORY 4 — OTHER EVENTS (community, commercial, or third-party events mentioned in school emails)
+Examples: holiday clubs, community festivals, external sports events, paid activities, charity events not run by the school
+Rules:
+- These are events mentioned in school communications but NOT organised by the school
+- Include enough detail for parents to act on them if interested
+- is_school_event: false
 
 Return ONLY a JSON object in this exact format, no other text:
 {
@@ -227,7 +237,18 @@ Return ONLY a JSON object in this exact format, no other text:
       "event_date": "YYYY-MM-DD",
       "description": "one sentence summary",
       "action_required": true/false,
-      "school_name": "school name"
+      "school_name": "school name",
+      "is_school_event": true
+    }
+  ],
+  "other_events": [
+    {
+      "title": "event title",
+      "event_date": "YYYY-MM-DD",
+      "description": "one sentence summary",
+      "action_required": false,
+      "school_name": null,
+      "is_school_event": false
     }
   ],
   "notices": [
@@ -271,12 +292,13 @@ Email body: ${emailText}`
 
     const result = JSON.parse(cleanJson)
     const events = result.events || []
+    const otherEvents = result.other_events || []
     const notices = result.notices || []
     const learning = result.learning || []
 
-    console.log(`Extracted: ${events.length} events, ${notices.length} notices, ${learning.length} learning`)
+    console.log(`Extracted: ${events.length} events, ${otherEvents.length} other events, ${notices.length} notices, ${learning.length} learning`)
 
-    // Save events
+    // Save school events
     for (const event of events) {
       await supabase.from('events').insert({
         user_id: user.id,
@@ -285,7 +307,22 @@ Email body: ${emailText}`
         description: event.description,
         action_required: event.action_required,
         source_email_subject: subject,
-        school_name: event.school_name || null
+        school_name: event.school_name || null,
+        is_school_event: true
+      })
+    }
+
+    // Save other events
+    for (const event of otherEvents) {
+      await supabase.from('events').insert({
+        user_id: user.id,
+        title: event.title,
+        event_date: event.event_date,
+        description: event.description,
+        action_required: false,
+        source_email_subject: subject,
+        school_name: null,
+        is_school_event: false
       })
     }
 
