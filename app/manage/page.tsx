@@ -23,6 +23,7 @@ export default function Manage() {
   const [success, setSuccess] = useState('')
   const [secondaryEmail, setSecondaryEmail] = useState('')
   const [savingSecondary, setSavingSecondary] = useState(false)
+  const [secondarySaved, setSecondarySaved] = useState(false)
 
   async function handleVerify() {
     setLoading(true)
@@ -92,14 +93,15 @@ export default function Manage() {
 
   async function handleSaveSecondaryEmail() {
     setSavingSecondary(true)
+    setSecondarySaved(false)
     const res = await fetch('/api/manage/secondary-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: user.id, email: secondaryEmail })
     })
     if (res.ok) {
-      setSuccess('Secondary email saved!')
-      setTimeout(() => setSuccess(''), 3000)
+      setSecondarySaved(true)
+      setTimeout(() => setSecondarySaved(false), 3000)
     } else {
       setError('Failed to save secondary email')
     }
@@ -226,7 +228,7 @@ export default function Manage() {
             disabled={savingSecondary}
             className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium disabled:opacity-50 text-sm"
           >
-            {savingSecondary ? 'Saving...' : 'Save secondary email'}
+            {savingSecondary ? 'Saving...' : secondarySaved ? '✓ Saved!' : 'Save secondary email'}
           </button>
         </div>
 
