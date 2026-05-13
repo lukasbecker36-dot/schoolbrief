@@ -70,15 +70,18 @@ export async function GET(req: Request) {
 
     const emailBody = formatDigest(thisWeek, lookingAhead, notices, learning, otherUpcoming)
 
+    const recipients = [user.email]
+    if (user.secondary_email) recipients.push(user.secondary_email)
+
     await resend.emails.send({
       from: 'SchoolBrief <digest@schoolbrief.uk>',
-      to: user.email,
+      to: recipients,
       subject: `📅 Your school week ahead — ${formatDate(today)}`,
       html: emailBody
     })
 
     emailsSent++
-    console.log(`✅ Sent digest to ${user.email}`)
+    console.log(`✅ Sent digest to ${recipients.join(', ')}`)
   }
 
   return Response.json({ message: `Sent ${emailsSent} digests` })

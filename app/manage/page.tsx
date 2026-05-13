@@ -21,6 +21,8 @@ export default function Manage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [secondaryEmail, setSecondaryEmail] = useState('')
+  const [savingSecondary, setSavingSecondary] = useState(false)
 
   async function handleVerify() {
     setLoading(true)
@@ -33,6 +35,7 @@ export default function Manage() {
     const data = await res.json()
     if (data.user) {
       setUser(data.user)
+      setSecondaryEmail(data.user.secondary_email || '')
       setChildren(data.children)
       setVerified(true)
     } else {
@@ -85,6 +88,22 @@ export default function Manage() {
       setSuccess('Updated!')
       setTimeout(() => setSuccess(''), 3000)
     }
+  }
+
+  async function handleSaveSecondaryEmail() {
+    setSavingSecondary(true)
+    const res = await fetch('/api/manage/secondary-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, email: secondaryEmail })
+    })
+    if (res.ok) {
+      setSuccess('Secondary email saved!')
+      setTimeout(() => setSuccess(''), 3000)
+    } else {
+      setError('Failed to save secondary email')
+    }
+    setSavingSecondary(false)
   }
 
   if (!verified) {
@@ -188,6 +207,26 @@ export default function Manage() {
             className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium disabled:opacity-50"
           >
             {loading ? 'Adding...' : 'Add child'}
+          </button>
+        </div>
+
+        {/* Secondary email */}
+        <div className="bg-white border rounded-lg p-5 mt-8">
+          <h2 className="font-semibold text-gray-900 mb-2">Send digest to a second email</h2>
+          <p className="text-gray-500 text-xs mb-4">Add another email address (e.g. your partner) to receive the daily digest too.</p>
+          <input
+            type="email"
+            placeholder="partner@example.com (leave blank for none)"
+            value={secondaryEmail}
+            onChange={e => setSecondaryEmail(e.target.value)}
+            className="w-full border rounded-lg p-3 mb-3 text-sm text-gray-900 placeholder-gray-500"
+          />
+          <button
+            onClick={handleSaveSecondaryEmail}
+            disabled={savingSecondary}
+            className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium disabled:opacity-50 text-sm"
+          >
+            {savingSecondary ? 'Saving...' : 'Save secondary email'}
           </button>
         </div>
 
