@@ -196,7 +196,9 @@ Examples: trips, sports day, bake off, assemblies, performances, fundraisers, de
 Rules:
 - ONLY include events that are organised and run by the school itself
 - Extract year-specific events as SEPARATE events — never combine two year groups into one entry
-- If an event specifies a year group, ONLY include it if one of the children is in EXACTLY that year group at that school — do not include events for other year groups even if they come from that child's school
+- YEAR GROUP FILTERING IS ABSOLUTE: If an event mentions a specific year group (e.g. "Year 4 trip", "Y6 visit"), check if any child is in that EXACT year group at that school. If not, OMIT the event entirely from your response. Do NOT include it for "context" or "completeness". Do NOT include it with a note saying "not relevant" or "disregard". Simply do not output it at all.
+- Example: If parent has James in Year 5 at Windmills, and email mentions "Y4 Butser Farm Trip" and "Y6 Brighton Trip", neither of these should appear in your output. They should be omitted completely.
+- Whole-school events (no year group specified) should be included normally.
 - If the event matches a specific child by year group, prefix the title with their name (e.g. "James — Brighton Pavilion Trip")
 - If no specific child can be identified but it is a whole-school event, prefix with school name (e.g. "Windmills: Mini Marathon")
 - Inherit year/child context into related deadlines (e.g. permission form for a Year 5 trip → tag to Year 5 child)

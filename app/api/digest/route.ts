@@ -168,6 +168,17 @@ function renderListGroup(events: any[]) {
   `).join('')
 }
 
+function renderOtherEventsCompact(events: any[]) {
+  return events.map(e => `
+    <tr>
+      <td style="padding: 4px 0; border-bottom: 1px solid #f5f5f5;">
+        <strong style="color: #2563eb; font-size: 12px;">${formatShortDate(e.event_date)}</strong>
+        <span style="color: #1a1a1a; margin-left: 8px; font-size: 13px;">${e.title}</span>
+      </td>
+    </tr>
+  `).join('')
+}
+
 function renderNotices(notices: any[]) {
   return notices.map(n => `
     <tr>
@@ -221,7 +232,7 @@ function formatDigest(
 
   if (otherEvents.length > 0) {
     body += sectionHeading('🎉', 'Other events & activities')
-    body += renderListGroup(otherEvents)
+    body += renderOtherEventsCompact(otherEvents)
   }
 
   if (!body) {
