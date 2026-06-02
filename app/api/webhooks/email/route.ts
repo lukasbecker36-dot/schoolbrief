@@ -202,7 +202,8 @@ Rules:
 - If the event matches a specific child by year group, prefix the title with their name (e.g. "James — Brighton Pavilion Trip")
 - If no specific child can be identified but it is a whole-school event, prefix with school name (e.g. "Windmills: Mini Marathon")
 - Inherit year/child context into related deadlines (e.g. permission form for a Year 5 trip → tag to Year 5 child)
-- Do NOT re-extract events already in the EXISTING EVENTS list unless there is significantly new information
+- If an event already exists in the EXISTING EVENTS list (matching by approximate title and exact date), DO NOT create a new entry — even if the new email contains more detail. Instead, simply omit it from your response and the existing entry will remain. The only exception is if the event has been cancelled, moved to a different date, or fundamentally changed in nature (in which case extract it and note the change clearly in the description).
+- Matching: titles are considered the same if they share the core event name (e.g. "Sports Day" matches "Year 2 Sports Day" matches "Sam — Year 2 Sports Day" — all on the same date). Don't be deceived by different child prefixes or extra descriptive words.
 - is_school_event: true
 
 CATEGORY 2 — NOTICES (short-term announcements from the school, no specific future date)
