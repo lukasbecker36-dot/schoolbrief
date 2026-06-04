@@ -212,6 +212,7 @@ Rules:
 - ONLY include notices from the school itself — not third-party advertisements or community notices
 - These are one-off announcements relevant today but not ongoing
 - Include school name in title
+- Also include as a notice any event happening TODAY or TOMORROW that is too soon to add to the calendar meaningfully — these should be captured as notices so parents see them immediately.
 - expires_in_days: 1
 
 CATEGORY 3 — LEARNING (weekly overviews for a specific child)
