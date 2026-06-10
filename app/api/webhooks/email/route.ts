@@ -287,6 +287,14 @@ Email body: ${emailText}`
       messages: [{ role: 'user', content }]
     })
 
+    await supabase.from('token_usage').insert({
+      user_id: user.id,
+      endpoint: 'webhooks/email',
+      input_tokens: message.usage.input_tokens,
+      output_tokens: message.usage.output_tokens,
+      model: 'claude-sonnet-4-6'
+    })
+
     const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}'
     console.log('Claude response:', responseText)
 

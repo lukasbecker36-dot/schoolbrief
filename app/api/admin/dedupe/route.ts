@@ -84,6 +84,14 @@ Return ONLY a JSON object like this, no other text:
           messages: [{ role: 'user', content: prompt }]
         })
 
+        await supabase.from('token_usage').insert({
+          user_id: user.id,
+          endpoint: 'admin/dedupe',
+          input_tokens: message.usage.input_tokens,
+          output_tokens: message.usage.output_tokens,
+          model: 'claude-sonnet-4-6'
+        })
+
         const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}'
         let cleanJson = responseText.replace(/```json\n?/g, '').replace(/```/g, '').trim()
 // Extract just the JSON object — sometimes Claude adds trailing text
