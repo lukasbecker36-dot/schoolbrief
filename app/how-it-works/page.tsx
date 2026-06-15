@@ -106,6 +106,10 @@ export default function HowItWorks() {
                 <p className="font-semibold text-gray-900 mb-1">What if an event date is wrong?</p>
                 <p className="text-gray-700 text-sm">AI isn't perfect. If something looks off, always check the original school email. We're working on flagging low-confidence events.</p>
               </div>
+              <div>
+                <p className="font-semibold text-gray-900 mb-1">Can this also handle alerts in apps like Class Dojo or Tapestry?</p>
+                <p className="text-gray-700 text-sm">No, these are walled gardens so it's not possible to handle messages from those apps.</p>
+              </div>
 
             </div>
           </section>
