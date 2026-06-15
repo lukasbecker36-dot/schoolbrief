@@ -57,16 +57,20 @@ export default function HowItWorks() {
 
             <div className="bg-white border rounded-lg p-5 mb-4">
               <h3 className="font-semibold text-gray-900 mb-3">📮 Yahoo Mail</h3>
-              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
-                <li>Open Yahoo Mail → click the cog icon (top right) → <strong>More settings</strong></li>
-                <li>Click <strong>Filters</strong> in the left sidebar</li>
-                <li>Click <strong>Add new filters</strong></li>
-                <li>Name it "Forward to SchoolBrief"</li>
-                <li>Set <strong>From</strong> → <strong>contains</strong> → your school's email address or domain</li>
-                <li>Set action: <strong>Forward</strong> → enter your SchoolBrief address</li>
-                <li>Click <strong>Save</strong></li>
+              <p className="text-gray-700 text-sm mb-3">Yahoo doesn't support automatic forwarding with filters on free accounts. You have two options:</p>
+              <p className="font-medium text-gray-900 text-sm mb-1">Option A — Forward each school email manually</p>
+              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm mb-4">
+                <li>Open a school email → click <strong>Forward</strong></li>
+                <li>Enter your SchoolBrief address and send</li>
               </ol>
-              <p className="text-xs text-gray-500 mt-3">Note: Yahoo filters forward future emails only — any school emails already in your inbox won't be forwarded automatically.</p>
+              <p className="font-medium text-gray-900 text-sm mb-1">Option B — Set up auto-forwarding (Yahoo Mail Plus, paid)</p>
+              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
+                <li>Open Yahoo Mail → click the cog icon → <strong>More settings</strong></li>
+                <li>Click <strong>Mailboxes</strong> in the left sidebar</li>
+                <li>Under your mailbox, find <strong>Forwarding</strong></li>
+                <li>Enter your SchoolBrief address and verify it</li>
+              </ol>
+              <p className="text-xs text-gray-500 mt-3">Tip: Option A takes just a few seconds each time — most parents find it easy enough as a daily habit.</p>
             </div>
 
             <div className="bg-white border rounded-lg p-5">
