@@ -55,24 +55,6 @@ export default function HowItWorks() {
               <p className="text-xs text-gray-500 mt-3">Note: Outlook doesn't support wildcard forwarding (like <code>*@school.uk</code>) — you'll need to add the specific sender address, or add a rule per sender.</p>
             </div>
 
-            <div className="bg-white border rounded-lg p-5 mb-4">
-              <h3 className="font-semibold text-gray-900 mb-3">📮 Yahoo Mail</h3>
-              <p className="text-gray-700 text-sm mb-3">Yahoo doesn't support automatic forwarding with filters on free accounts. You have two options:</p>
-              <p className="font-medium text-gray-900 text-sm mb-1">Option A — Forward each school email manually</p>
-              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm mb-4">
-                <li>Open a school email → click <strong>Forward</strong></li>
-                <li>Enter your SchoolBrief address and send</li>
-              </ol>
-              <p className="font-medium text-gray-900 text-sm mb-1">Option B — Set up auto-forwarding (Yahoo Mail Plus, paid)</p>
-              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
-                <li>Open Yahoo Mail → click the cog icon → <strong>More settings</strong></li>
-                <li>Click <strong>Mailboxes</strong> in the left sidebar</li>
-                <li>Under your mailbox, find <strong>Forwarding</strong></li>
-                <li>Enter your SchoolBrief address and verify it</li>
-              </ol>
-              <p className="text-xs text-gray-500 mt-3">Tip: Option A takes just a few seconds each time — most parents find it easy enough as a daily habit.</p>
-            </div>
-
             <div className="bg-white border rounded-lg p-5">
               <h3 className="font-semibold text-gray-900 mb-3">🍎 Apple Mail / iCloud</h3>
               <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
@@ -88,6 +70,8 @@ export default function HowItWorks() {
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4 rounded">
               <p className="text-sm text-blue-900"><strong>Tip:</strong> Not sure what your school's email domain is? Look at a recent email from them — it's whatever comes after the @ sign.</p>
             </div>
+
+            <p className="text-gray-500 text-sm mt-4"><strong>Yahoo Mail:</strong> Unfortunately Yahoo's free plan doesn't support auto-forwarding. You can still forward school emails manually to your SchoolBrief address, or contact us and we'll help you find a workaround.</p>
           </section>
 
           <section>
