@@ -55,6 +55,20 @@ export default function HowItWorks() {
               <p className="text-xs text-gray-500 mt-3">Note: Outlook doesn't support wildcard forwarding (like <code>*@school.uk</code>) — you'll need to add the specific sender address, or add a rule per sender.</p>
             </div>
 
+            <div className="bg-white border rounded-lg p-5 mb-4">
+              <h3 className="font-semibold text-gray-900 mb-3">📮 Yahoo Mail</h3>
+              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
+                <li>Open Yahoo Mail → click the cog icon (top right) → <strong>More settings</strong></li>
+                <li>Click <strong>Filters</strong> in the left sidebar</li>
+                <li>Click <strong>Add new filters</strong></li>
+                <li>Name it "Forward to SchoolBrief"</li>
+                <li>Set <strong>From</strong> → <strong>contains</strong> → your school's email address or domain</li>
+                <li>Set action: <strong>Forward</strong> → enter your SchoolBrief address</li>
+                <li>Click <strong>Save</strong></li>
+              </ol>
+              <p className="text-xs text-gray-500 mt-3">Note: Yahoo filters forward future emails only — any school emails already in your inbox won't be forwarded automatically.</p>
+            </div>
+
             <div className="bg-white border rounded-lg p-5">
               <h3 className="font-semibold text-gray-900 mb-3">🍎 Apple Mail / iCloud</h3>
               <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
