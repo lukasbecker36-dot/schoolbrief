@@ -65,8 +65,24 @@ export async function GET(req: Request) {
     const otherUpcoming = otherEvents.filter(e => e.event_date <= thirtyDaysStr)
 
     // Split notices into types
-    const notices = (allNotices || []).filter(n => n.category === 'notice')
     const learning = (allNotices || []).filter(n => n.category === 'learning')
+    const rawNotices = (allNotices || []).filter(n => n.category === 'notice')
+
+    // Dedupe notices that duplicate a This Week event. If the notice mentions a
+    // time the calendar event doesn't, flag a possible change on the event rather
+    // than showing two contradictory entries.
+    const notices = rawNotices.filter(notice => {
+      const match = thisWeek.find(e => titlesOverlap(e.title, notice.title))
+      if (!match) return true
+
+      const eventTimes = extractTimes(`${match.title} ${match.description}`)
+      const noticeTimes = extractTimes(`${notice.title} ${notice.content}`)
+      const newTimes = noticeTimes.filter(t => !eventTimes.includes(t))
+      if (eventTimes.length > 0 && newTimes.length > 0) {
+        match.conflictNote = 'A more recent email may have changed the time for this event — please check the original school email to confirm.'
+      }
+      return false
+    })
 
     const emailBody = formatDigest(thisWeek, lookingAhead, notices, learning, otherUpcoming)
 
@@ -85,6 +101,18 @@ export async function GET(req: Request) {
   }
 
   return Response.json({ message: `Sent ${emailsSent} digests` })
+}
+
+function titlesOverlap(a: string, b: string) {
+  const aWords = a.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+  const bWords = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 3))
+  const common = aWords.filter(w => bWords.has(w))
+  return common.length >= 2
+}
+
+function extractTimes(text: string) {
+  const matches = (text || '').match(/\b\d{1,2}[:.]\d{2}\s*(?:am|pm)?\b|\b\d{1,2}\s*(?:am|pm)\b/gi) || []
+  return [...new Set(matches.map(t => t.toLowerCase().replace(/\s+/g, '').replace(':', '.')))]
 }
 
 function formatDate(date: Date) {
@@ -139,6 +167,7 @@ function renderEventGroup(events: any[]) {
             ${e.action_required ? '<span style="background:#fff3cd;color:#856404;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:8px;">Action needed</span>' : ''}
             <br>
             <span style="color: #666; font-size: 14px;">${e.description}</span>
+            ${e.conflictNote ? `<br><span style="color: #b45309; font-size: 13px;">⚠️ ${e.conflictNote}</span>` : ''}
           </td>
         </tr>
       `).join('')
