@@ -116,7 +116,7 @@ function Connected() {
           </div>
         )}
 
-        {saved && processed && processed > 0 && (
+        {saved && (
           <div className="mt-4">
             {!digestSent ? (
               <button
