@@ -19,10 +19,15 @@ function Connected() {
   const [saved, setSaved] = useState(false)
   const [email, setEmail] = useState('')
 
+  const emailParam = params.get('email')
   useEffect(() => {
+    if (emailParam) {
+      setEmail(emailParam)
+      return
+    }
     const stored = typeof window !== 'undefined' ? localStorage.getItem('sb_email') : null
     if (stored) setEmail(stored)
-  }, [])
+  }, [emailParam])
 
   if (status !== 'ok') {
     return (

@@ -79,5 +79,5 @@ export async function GET(req: Request) {
     return fail('storage')
   }
 
-  return Response.redirect(`${origin}/gmail/connected?status=ok`)
+  return Response.redirect(`${origin}/gmail/connected?status=ok&email=${encodeURIComponent(email)}`)
 }
