@@ -36,6 +36,7 @@ export default function Home() {
     if (data.address) {
       setAddress(data.address)
       setSubmitted(true)
+      if (typeof window !== 'undefined') localStorage.setItem('sb_email', email)
     } else {
       setError(data.error || 'Something went wrong')
     }
@@ -154,11 +155,17 @@ export default function Home() {
             <p className="text-sm text-gray-700 mb-3">
               {received
                 ? 'Want this every morning automatically, without forwarding by hand?'
-                : 'Once you\'ve seen it work, you can automate it so school emails forward themselves:'}
+                : 'Then automate it so you never have to forward by hand:'}
             </p>
-            <a href="/how-it-works" className="inline-block bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg px-5 py-3 font-medium text-sm w-full text-center">
-              Set up automatic forwarding →
+            <a
+              href={`/api/gmail/connect?email=${encodeURIComponent(email)}`}
+              className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center mb-2"
+            >
+              Connect Gmail (recommended) →
             </a>
+            <p className="text-xs text-gray-400 text-center">
+              On a different provider? <a href="/how-it-works" className="underline">Set up forwarding instead</a>
+            </p>
             <a href="/manage" className="inline-block text-blue-600 text-sm mt-4 hover:underline w-full text-center">
               {status?.hasChildren ? 'Manage your children →' : 'Add your children\'s details →'}
             </a>

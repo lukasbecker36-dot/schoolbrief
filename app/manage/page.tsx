@@ -232,6 +232,20 @@ export default function Manage() {
           </button>
         </div>
 
+        {/* Connect Gmail */}
+        <div className="bg-white border rounded-lg p-5 mt-8">
+          <h2 className="font-semibold text-gray-900 mb-2">Connect Gmail</h2>
+          <p className="text-gray-500 text-xs mb-4">
+            Skip forwarding entirely — connect Gmail and we'll pick up your school emails automatically. Works on your phone too.
+          </p>
+          <a
+            href={`/api/gmail/connect?email=${encodeURIComponent(email)}`}
+            className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center"
+          >
+            Connect Gmail →
+          </a>
+        </div>
+
         {/* Forwarding address reminder */}
         <div className="mt-8 bg-gray-100 rounded-lg p-4">
           <p className="text-xs text-gray-500 mb-1">Your forwarding address</p>
