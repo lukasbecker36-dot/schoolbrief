@@ -68,6 +68,14 @@ if (isGmailConfirmation) {
   console.log('✅ Confirmation email forwarded to', user.email)
   return new Response('ok', { status: 200 })
 }
+    // Record the first email we ever receive for this user (drives the
+    // onboarding "we got your email" confirmation). Only sets it once.
+    await supabase
+      .from('users')
+      .update({ first_email_received_at: new Date().toISOString() })
+      .eq('id', user.id)
+      .is('first_email_received_at', null)
+
     // Get the user's children
     const { data: children } = await supabase
       .from('children')
