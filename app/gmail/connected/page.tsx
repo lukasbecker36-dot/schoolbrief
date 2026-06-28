@@ -17,6 +17,10 @@ function Connected() {
   const reason = params.get('reason') || ''
   const [domains, setDomains] = useState('')
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [processed, setProcessed] = useState<number | null>(null)
+  const [sendingDigest, setSendingDigest] = useState(false)
+  const [digestSent, setDigestSent] = useState(false)
   const [email, setEmail] = useState('')
 
   const emailParam = params.get('email')
@@ -43,12 +47,27 @@ function Connected() {
   }
 
   async function saveDomains() {
-    await fetch('/api/gmail/domains', {
+    setSaving(true)
+    const res = await fetch('/api/gmail/domains', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, domains })
     })
+    const data = await res.json()
+    setProcessed(typeof data.processed === 'number' ? data.processed : null)
+    setSaving(false)
     setSaved(true)
+  }
+
+  async function sendDigestNow() {
+    setSendingDigest(true)
+    await fetch('/api/onboarding/send-digest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    })
+    setSendingDigest(false)
+    setDigestSent(true)
   }
 
   return (
@@ -77,15 +96,42 @@ function Connected() {
         {!saved ? (
           <button
             onClick={saveDomains}
-            disabled={!domains || !email}
+            disabled={!domains || !email || saving}
             className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium disabled:opacity-50"
           >
-            Save
+            {saving ? 'Saving & checking your inbox…' : 'Save'}
           </button>
         ) : (
-          <p className="text-sm text-green-800 text-center bg-green-50 rounded-lg p-3">
-            ✅ Saved! We'll start pulling in school emails from these senders.
-          </p>
+          <div className="bg-green-50 rounded-lg p-4">
+            {processed && processed > 0 ? (
+              <p className="text-sm text-green-900">
+                ✅ Saved! We pulled in {processed} recent school email{processed === 1 ? '' : 's'} and added them to your digest.
+              </p>
+            ) : (
+              <p className="text-sm text-green-900">
+                ✅ Saved! We didn't find recent matching emails just now — we'll keep checking daily.
+                If you expected some, double-check the sender addresses above match exactly.
+              </p>
+            )}
+          </div>
+        )}
+
+        {saved && processed && processed > 0 && (
+          <div className="mt-4">
+            {!digestSent ? (
+              <button
+                onClick={sendDigestNow}
+                disabled={sendingDigest}
+                className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium disabled:opacity-50"
+              >
+                {sendingDigest ? 'Sending…' : '📧 See your digest now'}
+              </button>
+            ) : (
+              <p className="text-sm text-green-800 text-center bg-green-50 rounded-lg p-3">
+                ✅ Sent! Check your inbox to see your digest.
+              </p>
+            )}
+          </div>
         )}
         {!email && (
           <p className="text-xs text-amber-700 mt-3">
