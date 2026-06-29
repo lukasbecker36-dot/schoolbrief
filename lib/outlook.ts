@@ -44,30 +44,6 @@ async function getAccessToken(connection: any): Promise<string | null> {
   return tokens.access_token
 }
 
-// Diagnostic helper: returns the raw recent messages Graph reports for a
-// connection, so we can see exactly what senders/dates are in the mailbox.
-export async function debugListMessages(connection: any) {
-  const token = await getAccessToken(connection)
-  if (!token) return { error: 'token refresh failed' }
-
-  const listUrl =
-    `https://graph.microsoft.com/v1.0/me/messages` +
-    `?$select=id,subject,from,receivedDateTime,hasAttachments&$top=25`
-  const res = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } })
-  const list = await res.json()
-  if (!list.value) return { graphError: list }
-
-  return {
-    school_domains: connection.school_domains,
-    messageCount: list.value.length,
-    messages: list.value.map((m: any) => ({
-      subject: m.subject,
-      from: m.from?.emailAddress?.address,
-      receivedDateTime: m.receivedDateTime
-    }))
-  }
-}
-
 function senderMatches(fromAddr: string, domains: string[]) {
   const addr = fromAddr.toLowerCase()
   return domains.some(d => addr === d || addr.endsWith('@' + d) || addr.endsWith('.' + d))

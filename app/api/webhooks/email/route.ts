@@ -66,6 +66,22 @@ export async function POST(req: Request) {
       return new Response('ok', { status: 200 })
     }
 
+    // If this user has an active email connection (Gmail/Outlook) pulling their
+    // school mail directly, skip the forwarded copy to avoid double-processing
+    // the same email. Only counts connections that are actually configured
+    // (school senders set), so a half-finished connection doesn't black-hole mail.
+    const [{ data: gmailConn }, { data: outlookConn }] = await Promise.all([
+      supabase.from('gmail_connections').select('school_domains').eq('user_id', user.id).maybeSingle(),
+      supabase.from('outlook_connections').select('school_domains').eq('user_id', user.id).maybeSingle()
+    ])
+    const hasActiveConnection =
+      (gmailConn?.school_domains?.length ?? 0) > 0 ||
+      (outlookConn?.school_domains?.length ?? 0) > 0
+    if (hasActiveConnection) {
+      console.log('User has an active email connection — skipping forwarded copy to avoid double-processing')
+      return new Response('ok', { status: 200 })
+    }
+
     // Record the first email we ever receive for this user (drives the
     // onboarding "we got your email" confirmation). Only sets it once.
     await supabase
