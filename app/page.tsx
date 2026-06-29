@@ -161,7 +161,13 @@ export default function Home() {
               href={`/api/gmail/connect?email=${encodeURIComponent(email)}`}
               className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center mb-2"
             >
-              Connect Gmail (recommended) →
+              Connect Gmail →
+            </a>
+            <a
+              href={`/api/outlook/connect?email=${encodeURIComponent(email)}`}
+              className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center mb-2"
+            >
+              Connect Outlook / Hotmail →
             </a>
             <p className="text-xs text-gray-400 text-center">
               On a different provider? <a href="/how-it-works" className="underline">Set up forwarding instead</a>

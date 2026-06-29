@@ -232,17 +232,23 @@ export default function Manage() {
           </button>
         </div>
 
-        {/* Connect Gmail */}
+        {/* Connect email account */}
         <div className="bg-white border rounded-lg p-5 mt-8">
-          <h2 className="font-semibold text-gray-900 mb-2">Connect Gmail</h2>
+          <h2 className="font-semibold text-gray-900 mb-2">Connect your email</h2>
           <p className="text-gray-500 text-xs mb-4">
-            Skip forwarding entirely — connect Gmail and we'll pick up your school emails automatically. Works on your phone too.
+            Skip forwarding entirely — connect your account and we'll pick up your school emails automatically. Works on your phone too.
           </p>
           <a
             href={`/api/gmail/connect?email=${encodeURIComponent(email)}`}
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center"
+            className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center mb-2"
           >
             Connect Gmail →
+          </a>
+          <a
+            href={`/api/outlook/connect?email=${encodeURIComponent(email)}`}
+            className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center"
+          >
+            Connect Outlook / Hotmail →
           </a>
         </div>
 
