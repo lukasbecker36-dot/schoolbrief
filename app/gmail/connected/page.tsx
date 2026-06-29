@@ -143,7 +143,7 @@ function Connected() {
         {syncing && (
           <div className="flex items-center gap-3 bg-blue-50 rounded-lg p-4">
             <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-blue-900">Checking your inbox for school emails…</span>
+            <span className="text-sm text-blue-900">Checking your inbox for school emails… <span className="text-blue-700">(may take up to a minute to process, please wait)</span></span>
           </div>
         )}
 
