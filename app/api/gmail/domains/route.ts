@@ -1,3 +1,4 @@
+import { after } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { syncConnection } from '@/lib/gmail'
 
@@ -41,17 +42,20 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Save failed' }, { status: 500 })
     }
 
-    // Best-effort immediate sync so the user sees results right away. Capped low
-    // to stay within the time limit; the daily cron picks up anything missed.
-    let processed = 0
-    try {
-      const result = await syncConnection(connection, 2)
-      processed = result.processed
-    } catch (err) {
-      console.error('Initial Gmail sync failed:', err)
-    }
+    // Kick off the first sync in the background so the save returns instantly.
+    // The connected page polls /api/gmail/status and watches last_synced_at to
+    // know when this finishes. The daily cron picks up anything not reached
+    // within the function's time budget.
+    const baselineSyncedAt = connection.last_synced_at || null
+    after(async () => {
+      try {
+        await syncConnection(connection, 4)
+      } catch (err) {
+        console.error('Background Gmail sync failed:', err)
+      }
+    })
 
-    return Response.json({ saved: true, domains: list, processed })
+    return Response.json({ saved: true, domains: list, baselineSyncedAt })
   } catch (err) {
     console.error('Domains error:', err)
     return Response.json({ error: 'Server error' }, { status: 500 })

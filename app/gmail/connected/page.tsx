@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 const REASONS: Record<string, string> = {
@@ -18,10 +18,19 @@ function Connected() {
   const [domains, setDomains] = useState('')
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [processed, setProcessed] = useState<number | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncDone, setSyncDone] = useState(false)
+  const [itemCount, setItemCount] = useState(0)
   const [sendingDigest, setSendingDigest] = useState(false)
   const [digestSent, setDigestSent] = useState(false)
   const [email, setEmail] = useState('')
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [])
 
   const emailParam = params.get('email')
   useEffect(() => {
@@ -54,9 +63,37 @@ function Connected() {
       body: JSON.stringify({ email, domains })
     })
     const data = await res.json()
-    setProcessed(typeof data.processed === 'number' ? data.processed : null)
     setSaving(false)
     setSaved(true)
+    startPolling(data.baselineSyncedAt ?? null)
+  }
+
+  // Watch for the background sync to finish: last_synced_at changes from the
+  // value it had when we saved. Give up after ~90s and let the daily cron and
+  // the "see your digest" button cover the rest.
+  function startPolling(baseline: string | null) {
+    setSyncing(true)
+    let attempts = 0
+    pollRef.current = setInterval(async () => {
+      attempts++
+      try {
+        const res = await fetch('/api/gmail/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        })
+        const s = await res.json()
+        const done = s.lastSyncedAt && s.lastSyncedAt !== baseline
+        if (done || attempts >= 30) {
+          if (pollRef.current) clearInterval(pollRef.current)
+          setItemCount((s.eventCount || 0) + (s.noticeCount || 0))
+          setSyncing(false)
+          setSyncDone(true)
+        }
+      } catch {
+        // keep polling
+      }
+    }, 3000)
   }
 
   async function sendDigestNow() {
@@ -93,30 +130,39 @@ function Connected() {
           placeholder="yourschool.sch.uk, parentmail.co.uk"
           className="w-full border rounded-lg p-3 mb-3 text-sm text-gray-900 placeholder-gray-500"
         />
-        {!saved ? (
+        {!saved && (
           <button
             onClick={saveDomains}
             disabled={!domains || !email || saving}
             className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium disabled:opacity-50"
           >
-            {saving ? 'Saving & checking your inbox…' : 'Save'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
-        ) : (
+        )}
+
+        {syncing && (
+          <div className="flex items-center gap-3 bg-blue-50 rounded-lg p-4">
+            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-blue-900">Checking your inbox for school emails…</span>
+          </div>
+        )}
+
+        {syncDone && (
           <div className="bg-green-50 rounded-lg p-4">
-            {processed && processed > 0 ? (
+            {itemCount > 0 ? (
               <p className="text-sm text-green-900">
-                ✅ Saved! We pulled in {processed} recent school email{processed === 1 ? '' : 's'} and added them to your digest.
+                ✅ All set! Your digest now has {itemCount} upcoming item{itemCount === 1 ? '' : 's'} from your school emails.
               </p>
             ) : (
               <p className="text-sm text-green-900">
-                ✅ Saved! We didn't find recent matching emails just now — we'll keep checking daily.
+                ✅ All set! We didn't find recent matching emails just now — we'll keep checking daily.
                 If you expected some, double-check the sender addresses above match exactly.
               </p>
             )}
           </div>
         )}
 
-        {saved && (
+        {syncDone && (
           <div className="mt-4">
             {!digestSent ? (
               <button
