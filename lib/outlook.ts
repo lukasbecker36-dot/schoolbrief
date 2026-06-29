@@ -65,23 +65,29 @@ export async function syncOutlookConnection(connection: any, limit = 10): Promis
     .single()
   if (!user) return { processed: 0, error: 'user not found' }
 
-  // List recent message metadata (Graph can't reliably filter by sender domain,
-  // so we filter by date here and match the sender ourselves).
-  const sinceIso = new Date(Date.now() - 7 * 86400000).toISOString()
+  // Get recent messages (the default order is newest first) and filter by date
+  // and sender ourselves. Graph's $filter/$orderby combinations on the messages
+  // endpoint are finicky and error easily, so we keep the query minimal.
   const listUrl =
     `https://graph.microsoft.com/v1.0/me/messages` +
-    `?$filter=${encodeURIComponent(`receivedDateTime ge ${sinceIso}`)}` +
-    `&$select=id,subject,from,hasAttachments` +
-    `&$orderby=${encodeURIComponent('receivedDateTime desc')}` +
+    `?$select=id,subject,from,receivedDateTime,hasAttachments` +
     `&$top=50`
 
   const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } })
   const list = await listRes.json()
-  const messages = list.value || []
+  if (!list.value) {
+    console.error('Outlook message list failed:', JSON.stringify(list))
+    return { processed: 0, error: 'graph list failed' }
+  }
+
+  const sinceMs = Date.now() - 7 * 86400000
 
   let processed = 0
-  for (const meta of messages) {
+  for (const meta of list.value) {
     if (processed >= limit) break
+
+    const receivedMs = meta.receivedDateTime ? new Date(meta.receivedDateTime).getTime() : 0
+    if (receivedMs < sinceMs) continue
 
     const fromAddr = meta.from?.emailAddress?.address || ''
     if (!senderMatches(fromAddr, domains)) continue
