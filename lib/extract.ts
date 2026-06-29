@@ -68,7 +68,11 @@ export async function extractAndSave({
   const uniquePdfUrls = [...new Set(pdfUrlMatches)]
   for (const url of uniquePdfUrls) {
     try {
-      const response = await fetch(url)
+      // Bounded fetch — a slow or dead PDF link must never hang the request.
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 10_000)
+      const response = await fetch(url, { signal: controller.signal })
+      clearTimeout(timer)
       if (response.ok) {
         const buffer = await response.arrayBuffer()
         content.push({

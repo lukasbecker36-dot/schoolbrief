@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     // to stay within the time limit; the daily cron picks up anything missed.
     let processed = 0
     try {
-      const result = await syncConnection(connection, 3)
+      const result = await syncConnection(connection, 2)
       processed = result.processed
     } catch (err) {
       console.error('Initial Gmail sync failed:', err)
