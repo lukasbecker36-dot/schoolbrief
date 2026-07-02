@@ -123,6 +123,7 @@ Rules:
 - These are one-off announcements relevant today but not ongoing
 - Include school name in title
 - Also include as a notice any event happening TODAY or TOMORROW that is too soon to add to the calendar meaningfully — these should be captured as notices so parents see them immediately.
+- If a notice relates to something happening on a SPECIFIC day (e.g. an event today or tomorrow, or a one-off arrangement "for today only"), set event_date to that day in YYYY-MM-DD format. For general announcements with no specific day (staffing changes, policy updates), set event_date to null.
 - expires_in_days: 1
 
 CATEGORY 3 — LEARNING (weekly overviews for a specific child)
@@ -171,6 +172,7 @@ Return ONLY a JSON object in this exact format, no other text:
       "content": "one paragraph summary",
       "school_name": "school name",
       "category": "notice",
+      "event_date": "YYYY-MM-DD or null",
       "expires_in_days": 1
     }
   ],
@@ -302,6 +304,7 @@ Email body: ${emailText}`
           category: notice.category,
           title: notice.title,
           content: notice.content,
+          event_date: notice.event_date && /^\d{4}-\d{2}-\d{2}$/.test(notice.event_date) ? notice.event_date : null,
           expires_at: expiresAt.toISOString().split('T')[0]
         })
       }

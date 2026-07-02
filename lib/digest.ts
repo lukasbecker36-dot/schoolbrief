@@ -216,6 +216,10 @@ export async function buildDigestForUser(user: any): Promise<{ html: string; has
     .select('*')
     .eq('user_id', user.id)
     .gte('expires_at', todayStr)
+    // Drop day-specific notices whose day has already passed (e.g. a "for today
+    // only" arrangement that arrived too late for that day's digest). Notices
+    // with no event_date are unaffected.
+    .or(`event_date.is.null,event_date.gte.${todayStr}`)
     .order('category', { ascending: true })
     .order('created_at', { ascending: false })
 
