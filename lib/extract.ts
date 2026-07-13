@@ -298,7 +298,7 @@ Email body: ${emailText}`
         const expiresAt = new Date()
         expiresAt.setDate(expiresAt.getDate() + (notice.expires_in_days || 1))
 
-        await supabase.from('notices').insert({
+        const { error: noticeInsertError } = await supabase.from('notices').insert({
           user_id: user.id,
           school_name: notice.school_name || null,
           category: notice.category,
@@ -307,6 +307,7 @@ Email body: ${emailText}`
           event_date: notice.event_date && /^\d{4}-\d{2}-\d{2}$/.test(notice.event_date) ? notice.event_date : null,
           expires_at: expiresAt.toISOString().split('T')[0]
         })
+        if (noticeInsertError) console.error('Notice insert failed:', noticeInsertError)
       }
     }
   }

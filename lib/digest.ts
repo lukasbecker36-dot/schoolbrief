@@ -211,17 +211,15 @@ export async function buildDigestForUser(user: any): Promise<{ html: string; has
     .lte('event_date', thirtyDaysStr)
     .order('event_date', { ascending: true })
 
-  const { data: allNotices } = await supabase
+  const { data: allNotices, error: noticesError } = await supabase
     .from('notices')
     .select('*')
     .eq('user_id', user.id)
     .gte('expires_at', todayStr)
-    // Drop day-specific notices whose day has already passed (e.g. a "for today
-    // only" arrangement that arrived too late for that day's digest). Notices
-    // with no event_date are unaffected.
-    .or(`event_date.is.null,event_date.gte.${todayStr}`)
     .order('category', { ascending: true })
     .order('created_at', { ascending: false })
+
+  if (noticesError) console.error('Digest notices query failed:', noticesError)
 
   const schoolEvents = (allEvents || []).filter(e => e.is_school_event !== false)
   const otherEvents = (allEvents || []).filter(e => e.is_school_event === false)
@@ -233,8 +231,16 @@ export async function buildDigestForUser(user: any): Promise<{ html: string; has
   )
   const otherUpcoming = otherEvents.filter(e => e.event_date <= thirtyDaysStr)
 
-  const learning = (allNotices || []).filter(n => n.category === 'learning')
-  const rawNotices = (allNotices || []).filter(n => n.category === 'notice')
+  // Drop day-specific notices whose day has already passed (e.g. a "for today
+  // only" arrangement that arrived too late for that day's digest). Done in JS
+  // so the query never depends on the event_date column existing/being set —
+  // notices with no event_date are always kept.
+  const activeNotices = (allNotices || []).filter(
+    (n: any) => !n.event_date || n.event_date >= todayStr
+  )
+
+  const learning = activeNotices.filter(n => n.category === 'learning')
+  const rawNotices = activeNotices.filter(n => n.category === 'notice')
 
   // Dedupe notices that duplicate a This Week event. If the notice mentions a
   // time the calendar event doesn't, flag a possible change on the event rather
