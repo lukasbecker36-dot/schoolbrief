@@ -5,6 +5,18 @@ import { extractAndSave } from '@/lib/extract'
 
 export async function POST(req: Request) {
   try {
+    // Shared-secret check so only SendGrid (whose Inbound Parse URL includes
+    // ?secret=...) can feed us email. Enforced only once WEBHOOK_SECRET is set,
+    // so the SendGrid URL can be updated first without dropping mail. Returns
+    // 200 either way to avoid retry loops.
+    if (process.env.WEBHOOK_SECRET) {
+      const { searchParams } = new URL(req.url)
+      if (searchParams.get('secret') !== process.env.WEBHOOK_SECRET) {
+        console.error('Webhook called without valid secret — ignoring')
+        return new Response('ok', { status: 200 })
+      }
+    }
+
     const formData = await req.formData()
 
     const to = formData.get('to') as string

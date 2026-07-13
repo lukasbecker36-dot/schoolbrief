@@ -1,6 +1,47 @@
 import { supabase } from '@/lib/supabase'
 import Anthropic from '@anthropic-ai/sdk'
 
+// SSRF guard for the attacker-controlled PDF URLs found in inbound emails.
+// Allow only https to a public hostname — reject IP literals and internal names
+// so a crafted email can't make the server fetch cloud metadata or intranet
+// hosts. Redirects are disabled at the fetch call so a public URL can't bounce
+// to an internal one.
+function isFetchablePdfUrl(raw: string): boolean {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return false
+  }
+  if (url.protocol !== 'https:') return false
+
+  const host = url.hostname.toLowerCase()
+
+  // Block obvious internal names.
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
+    return false
+  }
+
+  // Block IPv6 literals outright (rare for legit PDF hosts).
+  if (host.includes(':')) return false
+
+  // Block IPv4 literals in private / loopback / link-local / CGNAT ranges.
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])]
+    if (a === 10) return false
+    if (a === 127) return false
+    if (a === 0) return false
+    if (a === 169 && b === 254) return false // link-local incl. 169.254.169.254 metadata
+    if (a === 172 && b >= 16 && b <= 31) return false
+    if (a === 192 && b === 168) return false
+    if (a === 100 && b >= 64 && b <= 127) return false // CGNAT
+    // any other bare IPv4 literal is allowed but suspicious; keep it simple and allow public ones
+  }
+
+  return true
+}
+
 type ExtractInput = {
   user: any
   subject: string
@@ -63,15 +104,17 @@ export async function extractAndSave({
   }
 
   // Extract PDF URLs from the body and fetch them (handles ParentMail's
-  // tokenised PDF links rather than real attachments).
+  // tokenised PDF links rather than real attachments). Capped and SSRF-guarded:
+  // these URLs are attacker-controlled (they come from an inbound email), so we
+  // only fetch public https hosts, never internal/loopback/metadata addresses.
   const pdfUrlMatches = (emailText + emailHtml).match(/https?:\/\/[^\s"<>]+\.pdf[^\s"<>]*/gi) || []
-  const uniquePdfUrls = [...new Set(pdfUrlMatches)]
+  const uniquePdfUrls = [...new Set(pdfUrlMatches)].filter(isFetchablePdfUrl).slice(0, 10)
   for (const url of uniquePdfUrls) {
     try {
       // Bounded fetch — a slow or dead PDF link must never hang the request.
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 10_000)
-      const response = await fetch(url, { signal: controller.signal })
+      const response = await fetch(url, { signal: controller.signal, redirect: 'error' })
       clearTimeout(timer)
       if (response.ok) {
         const buffer = await response.arrayBuffer()

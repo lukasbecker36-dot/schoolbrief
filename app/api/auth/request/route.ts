@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { sendLoginEmail } from '@/lib/auth'
+import { rateLimit, clientIp } from '@/lib/ratelimit'
 
 export const runtime = 'nodejs'
 
@@ -10,6 +11,13 @@ export async function POST(req: Request) {
     const { email } = await req.json()
     if (!email || typeof email !== 'string') {
       return Response.json({ error: 'Email required' }, { status: 400 })
+    }
+
+    // Cap login emails per address and per caller.
+    const ipOk = await rateLimit(`auth-ip:${clientIp(req)}`, 10, 3600)
+    const emailOk = await rateLimit(`auth-email:${email.trim().toLowerCase()}`, 5, 900)
+    if (!ipOk || !emailOk) {
+      return Response.json({ error: 'Too many requests — try again later' }, { status: 429 })
     }
 
     const { data: user } = await supabase

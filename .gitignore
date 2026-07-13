@@ -40,3 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 myNotes.txt
+# Local project handover notes
+CLAUDEhandover.md

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { createSessionToken, sessionCookie, sendLoginEmail } from '@/lib/auth'
+import { rateLimit, clientIp } from '@/lib/ratelimit'
 
 export const runtime = 'nodejs'
 
@@ -20,6 +21,11 @@ export async function POST(req: Request) {
     const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
     if (!email) {
       return Response.json({ error: 'Email required' }, { status: 400 })
+    }
+
+    // Cap signup attempts per caller (also throttles invite-code guessing).
+    if (!(await rateLimit(`signup-ip:${clientIp(req)}`, 10, 3600))) {
+      return Response.json({ error: 'Too many attempts — try again later' }, { status: 429 })
     }
 
     // Check invite code
