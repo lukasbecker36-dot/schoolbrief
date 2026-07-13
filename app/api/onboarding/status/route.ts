@@ -1,22 +1,16 @@
 import { supabase } from '@/lib/supabase'
+import { getSessionUser } from '@/lib/auth'
+
+export const runtime = 'nodejs'
 
 // Polled by the post-signup page to confirm we've received the user's first
-// forwarded email and report what we extracted from it.
-export async function POST(req: Request) {
+// forwarded email and report what we extracted from it. The user comes from
+// the session cookie set at signup.
+export async function GET(req: Request) {
   try {
-    const { email } = await req.json()
-    if (!email) {
-      return Response.json({ error: 'Email required' }, { status: 400 })
-    }
-
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, first_email_received_at')
-      .eq('email', email)
-      .single()
-
+    const user = await getSessionUser(req)
     if (!user) {
-      return Response.json({ error: 'User not found' }, { status: 404 })
+      return Response.json({ error: 'Not signed in' }, { status: 401 })
     }
 
     const todayStr = new Date().toISOString().split('T')[0]

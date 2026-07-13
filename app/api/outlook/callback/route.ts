@@ -76,5 +76,5 @@ export async function GET(req: Request) {
     return fail('storage')
   }
 
-  return Response.redirect(`${origin}/outlook/connected?status=ok&email=${encodeURIComponent(email)}`)
+  return Response.redirect(`${origin}/outlook/connected?status=ok`)
 }

@@ -1,22 +1,13 @@
 import { supabase } from '@/lib/supabase'
+import { getSessionUser } from '@/lib/auth'
+
+export const runtime = 'nodejs'
 
 // Polled by the Outlook connected page while a background sync runs.
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   try {
-    const { email } = await req.json()
-    if (!email) {
-      return Response.json({ error: 'Email required' }, { status: 400 })
-    }
-
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single()
-
-    if (!user) {
-      return Response.json({ error: 'User not found' }, { status: 404 })
-    }
+    const user = await getSessionUser(req)
+    if (!user) return Response.json({ error: 'Not signed in' }, { status: 401 })
 
     const { data: conn } = await supabase
       .from('outlook_connections')

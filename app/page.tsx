@@ -19,6 +19,7 @@ export default function Home() {
   const [error, setError] = useState('')
 
   const [status, setStatus] = useState<OnboardingStatus | null>(null)
+  const [existingAccount, setExistingAccount] = useState(false)
   const [copied, setCopied] = useState(false)
   const [sendingDigest, setSendingDigest] = useState(false)
   const [digestSent, setDigestSent] = useState(false)
@@ -27,6 +28,7 @@ export default function Home() {
   async function handleSignup() {
     setLoading(true)
     setError('')
+    setExistingAccount(false)
     const res = await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -36,24 +38,22 @@ export default function Home() {
     if (data.address) {
       setAddress(data.address)
       setSubmitted(true)
-      if (typeof window !== 'undefined') localStorage.setItem('sb_email', email)
+    } else if (data.existing) {
+      setExistingAccount(true)
     } else {
       setError(data.error || 'Something went wrong')
     }
     setLoading(false)
   }
 
-  // Poll for the first forwarded email once the user has signed up.
+  // Poll for the first forwarded email once the user has signed up. The signup
+  // response set a session cookie, so the status endpoint knows who we are.
   useEffect(() => {
     if (!submitted) return
 
     async function check() {
       try {
-        const res = await fetch('/api/onboarding/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        })
+        const res = await fetch('/api/onboarding/status')
         const data = await res.json()
         if (!data.error) {
           setStatus(data)
@@ -72,7 +72,7 @@ export default function Home() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
-  }, [submitted, email])
+  }, [submitted])
 
   function copyAddress() {
     navigator.clipboard.writeText(address)
@@ -82,11 +82,7 @@ export default function Home() {
 
   async function sendDigestNow() {
     setSendingDigest(true)
-    await fetch('/api/onboarding/send-digest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
+    await fetch('/api/onboarding/send-digest', { method: 'POST' })
     setSendingDigest(false)
     setDigestSent(true)
   }
@@ -158,13 +154,13 @@ export default function Home() {
                 : 'Then automate it so you never have to forward by hand:'}
             </p>
             <a
-              href={`/api/gmail/connect?email=${encodeURIComponent(email)}`}
+              href="/api/gmail/connect"
               className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center mb-2"
             >
               Connect Gmail →
             </a>
             <a
-              href={`/api/outlook/connect?email=${encodeURIComponent(email)}`}
+              href="/api/outlook/connect"
               className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center mb-2"
             >
               Connect Outlook / Hotmail →
@@ -203,6 +199,11 @@ export default function Home() {
           className="w-full border rounded-lg p-3 mb-4 text-sm text-gray-900 placeholder-gray-500"
         />
         {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+        {existingAccount && (
+          <p className="text-green-800 text-sm mb-3 bg-green-50 rounded-lg p-3">
+            You already have an account — we've emailed you a sign-in link to manage it.
+          </p>
+        )}
         <button
           onClick={handleSignup}
           disabled={loading || !email || !inviteCode}

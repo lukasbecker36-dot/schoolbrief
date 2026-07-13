@@ -1,14 +1,16 @@
 import { signState } from '@/lib/crypto'
+import { getSessionUser } from '@/lib/auth'
 import { OUTLOOK_SCOPE } from '@/lib/outlook'
 
 export const runtime = 'nodejs'
 
-// Kicks off the Microsoft OAuth flow for Outlook/Hotmail/Live accounts.
+// Kicks off the Microsoft OAuth flow for the signed-in user.
 export async function GET(req: Request) {
-  const { searchParams, origin } = new URL(req.url)
-  const email = searchParams.get('email')
-  if (!email) {
-    return new Response('Email required', { status: 400 })
+  const { origin } = new URL(req.url)
+
+  const user = await getSessionUser(req)
+  if (!user) {
+    return Response.redirect(`${origin}/manage?login=required`)
   }
 
   const params = new URLSearchParams({
@@ -17,8 +19,8 @@ export async function GET(req: Request) {
     redirect_uri: `${origin}/api/outlook/callback`,
     response_mode: 'query',
     scope: OUTLOOK_SCOPE,
-    state: signState(email),
-    login_hint: email,
+    state: signState(user.email),
+    login_hint: user.email,
     prompt: 'consent'
   })
 

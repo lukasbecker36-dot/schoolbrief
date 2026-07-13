@@ -1,27 +1,21 @@
 import { after } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { syncConnection } from '@/lib/gmail'
+import { getSessionUser } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-// Stores the school sender domains/addresses we're allowed to read from a
-// connected Gmail account, so we only ever pull school mail.
+// Stores the school sender domains/addresses we're allowed to read from the
+// signed-in user's connected Gmail account, so we only ever pull school mail.
 export async function POST(req: Request) {
   try {
-    const { email, domains } = await req.json()
-    if (!email || !domains) {
-      return Response.json({ error: 'Email and domains required' }, { status: 400 })
-    }
+    const user = await getSessionUser(req)
+    if (!user) return Response.json({ error: 'Not signed in' }, { status: 401 })
 
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single()
-
-    if (!user) {
-      return Response.json({ error: 'User not found' }, { status: 404 })
+    const { domains } = await req.json()
+    if (!domains) {
+      return Response.json({ error: 'Domains required' }, { status: 400 })
     }
 
     // Normalise into a clean list of lowercase domains/addresses.

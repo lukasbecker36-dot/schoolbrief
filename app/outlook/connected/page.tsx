@@ -23,7 +23,7 @@ function Connected() {
   const [itemCount, setItemCount] = useState(0)
   const [sendingDigest, setSendingDigest] = useState(false)
   const [digestSent, setDigestSent] = useState(false)
-  const [email, setEmail] = useState('')
+  const [error, setError] = useState('')
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -31,16 +31,6 @@ function Connected() {
       if (pollRef.current) clearInterval(pollRef.current)
     }
   }, [])
-
-  const emailParam = params.get('email')
-  useEffect(() => {
-    if (emailParam) {
-      setEmail(emailParam)
-      return
-    }
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('sb_email') : null
-    if (stored) setEmail(stored)
-  }, [emailParam])
 
   if (status !== 'ok') {
     return (
@@ -57,13 +47,20 @@ function Connected() {
 
   async function saveDomains() {
     setSaving(true)
+    setError('')
     const res = await fetch('/api/outlook/domains', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, domains })
+      body: JSON.stringify({ domains })
     })
     const data = await res.json()
     setSaving(false)
+    if (!res.ok) {
+      setError(res.status === 401
+        ? 'Your session has expired — please sign in again from the manage page, then retry.'
+        : 'Something went wrong saving. Please try again.')
+      return
+    }
     setSaved(true)
     startPolling(data.baselineSyncedAt ?? null)
   }
@@ -74,11 +71,7 @@ function Connected() {
     pollRef.current = setInterval(async () => {
       attempts++
       try {
-        const res = await fetch('/api/outlook/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        })
+        const res = await fetch('/api/outlook/status')
         const s = await res.json()
         const done = s.lastSyncedAt && s.lastSyncedAt !== baseline
         if (done || attempts >= 30) {
@@ -95,11 +88,7 @@ function Connected() {
 
   async function sendDigestNow() {
     setSendingDigest(true)
-    await fetch('/api/onboarding/send-digest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
+    await fetch('/api/onboarding/send-digest', { method: 'POST' })
     setSendingDigest(false)
     setDigestSent(true)
   }
@@ -127,10 +116,11 @@ function Connected() {
           placeholder="yourschool.sch.uk, parentmail.co.uk"
           className="w-full border rounded-lg p-3 mb-3 text-sm text-gray-900 placeholder-gray-500"
         />
+        {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
         {!saved && (
           <button
             onClick={saveDomains}
-            disabled={!domains || !email || saving}
+            disabled={!domains || saving}
             className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save'}
@@ -175,11 +165,6 @@ function Connected() {
               </p>
             )}
           </div>
-        )}
-        {!email && (
-          <p className="text-xs text-amber-700 mt-3">
-            We couldn't detect your account email — please <a href="/manage" className="underline">set your school senders on the manage page</a> instead.
-          </p>
         )}
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 const YEAR_LEVELS = [
   'Nursery',
@@ -10,9 +11,12 @@ const YEAR_LEVELS = [
   'Year 12', 'Year 13'
 ]
 
-export default function Manage() {
+function Manage() {
+  const params = useSearchParams()
+  const loginHint = params.get('login')
+
+  const [authState, setAuthState] = useState<'loading' | 'anon' | 'sent' | 'authed'>('loading')
   const [email, setEmail] = useState('')
-  const [verified, setVerified] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [children, setChildren] = useState<any[]>([])
   const [newName, setNewName] = useState('')
@@ -25,24 +29,32 @@ export default function Manage() {
   const [savingSecondary, setSavingSecondary] = useState(false)
   const [secondarySaved, setSecondarySaved] = useState(false)
 
-  async function handleVerify() {
+  useEffect(() => {
+    fetch('/api/manage/me')
+      .then(async res => {
+        if (res.ok) {
+          const data = await res.json()
+          setUser(data.user)
+          setChildren(data.children || [])
+          setSecondaryEmail(data.user.secondary_email || '')
+          setAuthState('authed')
+        } else {
+          setAuthState('anon')
+        }
+      })
+      .catch(() => setAuthState('anon'))
+  }, [])
+
+  async function requestLoginLink() {
     setLoading(true)
     setError('')
-    const res = await fetch('/api/manage/verify', {
+    await fetch('/api/auth/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
     })
-    const data = await res.json()
-    if (data.user) {
-      setUser(data.user)
-      setSecondaryEmail(data.user.secondary_email || '')
-      setChildren(data.children)
-      setVerified(true)
-    } else {
-      setError('No account found for that email address')
-    }
     setLoading(false)
+    setAuthState('sent')
   }
 
   async function handleAddChild() {
@@ -52,7 +64,7 @@ export default function Manage() {
     const res = await fetch('/api/manage/children', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, name: newName, yearLevel: newYear, schoolName: newSchool })
+      body: JSON.stringify({ name: newName, yearLevel: newYear, schoolName: newSchool })
     })
     const data = await res.json()
     if (data.child) {
@@ -97,7 +109,7 @@ export default function Manage() {
     const res = await fetch('/api/manage/secondary-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, email: secondaryEmail })
+      body: JSON.stringify({ email: secondaryEmail })
     })
     if (res.ok) {
       setSecondarySaved(true)
@@ -108,29 +120,52 @@ export default function Manage() {
     setSavingSecondary(false)
   }
 
-  if (!verified) {
+  if (authState === 'loading') {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">Loading…</div>
+      </main>
+    )
+  }
+
+  if (authState === 'anon' || authState === 'sent') {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white p-8 rounded-xl shadow max-w-md w-full">
           <a href="/" className="text-blue-600 text-sm mb-6 inline-block">← Back</a>
-          <div className="text-3xl mb-4">👨‍👩‍👧‍👦</div>
-          <h1 className="text-2xl font-bold mb-2 text-gray-900">Manage your children</h1>
-          <p className="text-gray-600 mb-6 text-sm">Enter your email to access your account.</p>
-          <input
-            type="email"
-            placeholder="Your email address"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="w-full border rounded-lg p-3 mb-4 text-sm text-gray-900 placeholder-gray-500"
-          />
-          {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
-          <button
-            onClick={handleVerify}
-            disabled={loading || !email}
-            className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium disabled:opacity-50"
-          >
-            {loading ? 'Looking up...' : 'Access my account'}
-          </button>
+          <div className="text-3xl mb-4">🔐</div>
+          <h1 className="text-2xl font-bold mb-2 text-gray-900">Sign in to SchoolBrief</h1>
+          {authState === 'sent' ? (
+            <div className="bg-green-50 rounded-lg p-4">
+              <p className="text-sm text-green-900">
+                ✅ If that email has an account, we've sent it a sign-in link. Check your inbox and click the link — it's valid for 15 minutes.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-gray-600 mb-2 text-sm">Enter your email and we'll send you a secure sign-in link.</p>
+              {loginHint === 'expired' && (
+                <p className="text-amber-700 text-sm mb-2 bg-amber-50 rounded-lg p-3">That sign-in link has expired — request a new one below.</p>
+              )}
+              {loginHint === 'required' && (
+                <p className="text-amber-700 text-sm mb-2 bg-amber-50 rounded-lg p-3">Please sign in first, then try connecting your email again.</p>
+              )}
+              <input
+                type="email"
+                placeholder="Your email address"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full border rounded-lg p-3 mb-4 mt-2 text-sm text-gray-900 placeholder-gray-500"
+              />
+              <button
+                onClick={requestLoginLink}
+                disabled={loading || !email}
+                className="w-full bg-blue-600 text-white rounded-lg p-3 font-medium disabled:opacity-50"
+              >
+                {loading ? 'Sending…' : 'Email me a sign-in link'}
+              </button>
+            </>
+          )}
         </div>
       </main>
     )
@@ -239,13 +274,13 @@ export default function Manage() {
             Skip forwarding entirely — connect your account and we'll pick up your school emails automatically. Works on your phone too.
           </p>
           <a
-            href={`/api/gmail/connect?email=${encodeURIComponent(email)}`}
+            href="/api/gmail/connect"
             className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center mb-2"
           >
             Connect Gmail →
           </a>
           <a
-            href={`/api/outlook/connect?email=${encodeURIComponent(email)}`}
+            href="/api/outlook/connect"
             className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center"
           >
             Connect Outlook / Hotmail →
@@ -259,5 +294,13 @@ export default function Manage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function ManagePage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen flex items-center justify-center bg-gray-50"><div className="text-gray-500">Loading…</div></main>}>
+      <Manage />
+    </Suspense>
   )
 }

@@ -1,27 +1,22 @@
 import { after } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { syncOutlookConnection } from '@/lib/outlook'
+import { getSessionUser } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-// Stores the school sender domains/addresses for a connected Outlook account and
-// kicks off the first sync in the background (the connected page polls for it).
+// Stores the school sender domains/addresses for the signed-in user's connected
+// Outlook account and kicks off the first sync in the background (the connected
+// page polls for it).
 export async function POST(req: Request) {
   try {
-    const { email, domains } = await req.json()
-    if (!email || !domains) {
-      return Response.json({ error: 'Email and domains required' }, { status: 400 })
-    }
+    const user = await getSessionUser(req)
+    if (!user) return Response.json({ error: 'Not signed in' }, { status: 401 })
 
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single()
-
-    if (!user) {
-      return Response.json({ error: 'User not found' }, { status: 404 })
+    const { domains } = await req.json()
+    if (!domains) {
+      return Response.json({ error: 'Domains required' }, { status: 400 })
     }
 
     const list = String(domains)
