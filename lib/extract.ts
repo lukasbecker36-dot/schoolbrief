@@ -360,8 +360,18 @@ Email body: ${emailText}`
       if (similarExists) {
         console.log('Skipping duplicate notice:', notice.title)
       } else {
+        const eventDate = notice.event_date && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(notice.event_date)
+          ? notice.event_date
+          : null
+
+        // A notice about a specific future day has to outlive the default one
+        // day, or it drops out of the digest long before the thing it warns
+        // about: a clubs sign-up closing on the 9th expired on the 2nd. Keep
+        // it alive until the day it refers to.
         const expiresAt = new Date()
         expiresAt.setDate(expiresAt.getDate() + (notice.expires_in_days || 1))
+        let expiresAtStr = expiresAt.toISOString().split('T')[0]
+        if (eventDate && eventDate > expiresAtStr) expiresAtStr = eventDate
 
         const { error: noticeInsertError } = await supabase.from('notices').insert({
           user_id: user.id,
@@ -369,8 +379,8 @@ Email body: ${emailText}`
           category: notice.category,
           title: notice.title,
           content: notice.content,
-          event_date: notice.event_date && /^\d{4}-\d{2}-\d{2}$/.test(notice.event_date) ? notice.event_date : null,
-          expires_at: expiresAt.toISOString().split('T')[0]
+          event_date: eventDate,
+          expires_at: expiresAtStr
         })
         if (noticeInsertError) console.error('Notice insert failed:', noticeInsertError)
       }
