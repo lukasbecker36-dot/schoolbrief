@@ -7,6 +7,11 @@ import Anthropic from '@anthropic-ai/sdk'
 // the ceiling.
 const MAX_OUTPUT_TOKENS = 16000
 
+// Both sync jobs run as serverless functions with maxDuration = 60. Stop
+// starting new extractions this far into a run so it can return a report
+// instead of being killed mid-message; whatever is left drains next run.
+export const SYNC_TIME_BUDGET_MS = 45_000
+
 // SSRF guard for the attacker-controlled PDF URLs found in inbound emails.
 // Allow only https to a public hostname — reject IP literals and internal names
 // so a crafted email can't make the server fetch cloud metadata or intranet

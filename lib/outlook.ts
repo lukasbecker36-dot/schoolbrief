@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { encrypt, decrypt } from '@/lib/crypto'
-import { extractAndSave, recordProcessedMessage } from '@/lib/extract'
+import { extractAndSave, recordProcessedMessage, SYNC_TIME_BUDGET_MS } from '@/lib/extract'
 
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
 export const OUTLOOK_SCOPE = 'offline_access Mail.Read User.Read'
@@ -56,8 +56,9 @@ function senderMatches(fromAddr: string, domains: string[]) {
 // Capped per run to stay within serverless time limits.
 export async function syncOutlookConnection(
   connection: any,
-  limit = 10
-): Promise<{ processed: number; scanned?: number; matched?: number; error?: string }> {
+  limit = 10,
+  deadline: number = Date.now() + SYNC_TIME_BUDGET_MS
+): Promise<{ processed: number; scanned?: number; matched?: number; stoppedEarly?: boolean; error?: string }> {
   const domains: string[] = connection.school_domains || []
   if (domains.length === 0) return { processed: 0, error: 'no school domains set' }
 
@@ -110,8 +111,15 @@ export async function syncOutlookConnection(
 
   // Newest first, so a backlog bigger than `limit` drains over repeated runs.
   let processed = 0
+  let stoppedEarly = false
   for (const meta of matches) {
     if (processed >= limit) break
+    // Out of budget: leave the rest unmarked so the next run takes them, rather
+    // than being killed part-way through an extraction.
+    if (Date.now() > deadline) {
+      stoppedEarly = true
+      break
+    }
 
     const { data: seen } = await supabase
       .from('outlook_processed_messages')
@@ -183,5 +191,5 @@ export async function syncOutlookConnection(
     .update({ last_synced_at: new Date().toISOString() })
     .eq('id', connection.id)
 
-  return { processed, scanned, matched: matches.length }
+  return { processed, scanned, matched: matches.length, stoppedEarly }
 }

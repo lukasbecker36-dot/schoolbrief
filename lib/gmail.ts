@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { encrypt, decrypt } from '@/lib/crypto'
-import { extractAndSave, recordProcessedMessage } from '@/lib/extract'
+import { extractAndSave, recordProcessedMessage, SYNC_TIME_BUDGET_MS } from '@/lib/extract'
 
 // Returns a valid access token for a connection, refreshing via the stored
 // refresh token if the cached one has expired. Returns null if refresh fails
@@ -90,7 +90,11 @@ async function fetchAttachment(token: string, messageId: string, attachmentId: s
 
 // Syncs new school emails for one connection. Caps the number processed per run
 // to stay within serverless time limits — repeated runs drain any backlog.
-export async function syncConnection(connection: any, limit = 10): Promise<{ processed: number; error?: string }> {
+export async function syncConnection(
+  connection: any,
+  limit = 10,
+  deadline: number = Date.now() + SYNC_TIME_BUDGET_MS
+): Promise<{ processed: number; stoppedEarly?: boolean; error?: string }> {
   const domains: string[] = connection.school_domains || []
   if (domains.length === 0) return { processed: 0, error: 'no school domains set' }
 
@@ -113,7 +117,15 @@ export async function syncConnection(connection: any, limit = 10): Promise<{ pro
   const messages = list.messages || []
 
   let processed = 0
+  let stoppedEarly = false
   for (const m of messages) {
+    // Out of budget: leave the rest marked unprocessed so the next run takes
+    // them, rather than being killed part-way through an extraction.
+    if (Date.now() > deadline) {
+      stoppedEarly = true
+      break
+    }
+
     const { data: seen } = await supabase
       .from('gmail_processed_messages')
       .select('id')
@@ -167,5 +179,5 @@ export async function syncConnection(connection: any, limit = 10): Promise<{ pro
     .update({ last_synced_at: new Date().toISOString() })
     .eq('id', connection.id)
 
-  return { processed }
+  return { processed, stoppedEarly }
 }
