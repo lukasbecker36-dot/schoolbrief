@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { encrypt, decrypt } from '@/lib/crypto'
-import { extractAndSave } from '@/lib/extract'
+import { extractAndSave, recordProcessedMessage } from '@/lib/extract'
 
 // Returns a valid access token for a connection, refreshing via the stored
 // refresh token if the cached one has expired. Returns null if refresh fails
@@ -135,6 +135,7 @@ export async function syncConnection(connection: any, limit = 10): Promise<{ pro
       if (buf) pdfBuffers.push(buf)
     }
 
+    let extractionError: string | undefined
     try {
       await extractAndSave({
         user,
@@ -145,14 +146,19 @@ export async function syncConnection(connection: any, limit = 10): Promise<{ pro
         endpoint: 'gmail/sync'
       })
     } catch (err) {
+      extractionError = err instanceof Error ? err.message : String(err)
       console.error('Gmail extraction failed for message', m.id, err)
     }
 
-    // Mark processed regardless, so a single bad email can't loop forever.
-    await supabase.from('gmail_processed_messages').insert({
-      user_id: connection.user_id,
-      message_id: m.id
-    })
+    // Mark processed regardless, so a single bad email can't loop forever —
+    // but record the failure so it can be found and replayed.
+    await recordProcessedMessage(
+      'gmail_processed_messages',
+      connection.user_id,
+      m.id,
+      subject,
+      extractionError
+    )
     processed++
   }
 

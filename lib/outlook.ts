@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { encrypt, decrypt } from '@/lib/crypto'
-import { extractAndSave } from '@/lib/extract'
+import { extractAndSave, recordProcessedMessage } from '@/lib/extract'
 
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
 export const OUTLOOK_SCOPE = 'offline_access Mail.Read User.Read'
@@ -150,23 +150,31 @@ export async function syncOutlookConnection(
       }
     }
 
+    const subject = msg.subject || meta.subject || ''
+    let extractionError: string | undefined
     try {
       await extractAndSave({
         user,
-        subject: msg.subject || meta.subject || '',
+        subject,
         emailText,
         emailHtml,
         pdfBuffers,
         endpoint: 'outlook/sync'
       })
     } catch (err) {
+      extractionError = err instanceof Error ? err.message : String(err)
       console.error('Outlook extraction failed for message', meta.id, err)
     }
 
-    await supabase.from('outlook_processed_messages').insert({
-      user_id: connection.user_id,
-      message_id: meta.id
-    })
+    // Marked handled either way so one bad email can't loop forever, but the
+    // failure is recorded rather than silently dropped.
+    await recordProcessedMessage(
+      'outlook_processed_messages',
+      connection.user_id,
+      meta.id,
+      subject,
+      extractionError
+    )
     processed++
   }
 

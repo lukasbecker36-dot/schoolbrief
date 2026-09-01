@@ -1,6 +1,12 @@
 import { supabase } from '@/lib/supabase'
 import Anthropic from '@anthropic-ai/sdk'
 
+// A start-of-term newsletter can carry dozens of events; at 4096 the reply was
+// cut off mid-JSON, the parse threw, and the email was marked processed with
+// nothing saved. Headroom is free — we're billed on tokens generated, not on
+// the ceiling.
+const MAX_OUTPUT_TOKENS = 16000
+
 // SSRF guard for the attacker-controlled PDF URLs found in inbound emails.
 // Allow only https to a public hostname — reject IP literals and internal names
 // so a crafted email can't make the server fetch cloud metadata or intranet
@@ -238,7 +244,7 @@ Email body: ${emailText}`
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: MAX_OUTPUT_TOKENS,
     messages: [{ role: 'user', content }]
   })
 
@@ -251,13 +257,24 @@ Email body: ${emailText}`
   })
   if (tokenError) console.error('Token usage insert failed:', tokenError)
 
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error(
+      `Extraction hit the ${MAX_OUTPUT_TOKENS}-token output limit — nothing saved for "${subject}"`
+    )
+  }
+
   const responseText = message.content[0].type === 'text' ? message.content[0].text : '{}'
 
   let cleanJson = responseText.replace(/```json\n?/g, '').replace(/```/g, '').trim()
   const jsonMatch = cleanJson.match(/\{[\s\S]*\}/)
   if (jsonMatch) cleanJson = jsonMatch[0]
 
-  const result = JSON.parse(cleanJson)
+  let result: any
+  try {
+    result = JSON.parse(cleanJson)
+  } catch {
+    throw new Error(`Extraction returned unparseable JSON — nothing saved for "${subject}"`)
+  }
   const events = result.events || []
   const otherEvents = result.other_events || []
   const notices = result.notices || []
@@ -354,4 +371,34 @@ Email body: ${emailText}`
       }
     }
   }
+}
+
+// Marks a synced message as handled. A failed extraction is recorded with its
+// error rather than as a clean row, so it can be found and replayed (delete the
+// row, re-run the sync) instead of vanishing. Falls back to a bare insert while
+// the subject/error columns don't exist yet, so this can deploy before the
+// migration runs.
+export async function recordProcessedMessage(
+  table: 'gmail_processed_messages' | 'outlook_processed_messages',
+  userId: string,
+  messageId: string,
+  subject: string,
+  extractionError?: string
+) {
+  const { error } = await supabase.from(table).insert({
+    user_id: userId,
+    message_id: messageId,
+    subject: subject || null,
+    error: extractionError || null
+  })
+  if (!error) return
+
+  if (error.code === '42703') {
+    const { error: fallbackError } = await supabase
+      .from(table)
+      .insert({ user_id: userId, message_id: messageId })
+    if (fallbackError) console.error(`Failed to record processed message in ${table}:`, fallbackError)
+    return
+  }
+  console.error(`Failed to record processed message in ${table}:`, error)
 }
