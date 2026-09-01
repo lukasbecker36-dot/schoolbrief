@@ -5,6 +5,9 @@ import { extractAndSave } from '@/lib/extract'
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
 export const OUTLOOK_SCOPE = 'offline_access Mail.Read User.Read'
 
+// Pages of 100 to walk back through the 7-day window without unbounded work.
+const MAX_LIST_PAGES = 10
+
 // Returns a valid Graph access token, refreshing if the cached one expired.
 // Microsoft rotates refresh tokens, so we store a new one when returned.
 async function getAccessToken(connection: any): Promise<string | null> {
@@ -51,7 +54,10 @@ function senderMatches(fromAddr: string, domains: string[]) {
 
 // Syncs new school emails from one Outlook connection via Microsoft Graph.
 // Capped per run to stay within serverless time limits.
-export async function syncOutlookConnection(connection: any, limit = 10): Promise<{ processed: number; error?: string }> {
+export async function syncOutlookConnection(
+  connection: any,
+  limit = 10
+): Promise<{ processed: number; scanned?: number; matched?: number; error?: string }> {
   const domains: string[] = connection.school_domains || []
   if (domains.length === 0) return { processed: 0, error: 'no school domains set' }
 
@@ -65,32 +71,47 @@ export async function syncOutlookConnection(connection: any, limit = 10): Promis
     .single()
   if (!user) return { processed: 0, error: 'user not found' }
 
-  // Get recent messages (the default order is newest first) and filter by date
-  // and sender ourselves. Graph's $filter/$orderby combinations on the messages
-  // endpoint are finicky and error easily, so we keep the query minimal.
-  const listUrl =
+  // Graph's message collection spans every folder (including Deleted Items and
+  // Clutter) and has no documented default sort order, so a bare $top slice can
+  // silently return the same arbitrary messages every run and never include the
+  // school's mail. Filter and sort server-side on receivedDateTime instead, and
+  // page through the window. Ordering rule: a property in $orderby must also
+  // appear in $filter, ahead of any other property, or Graph rejects the query
+  // with InefficientFilter.
+  const sinceIso = new Date(Date.now() - 7 * 86400000).toISOString()
+  const firstPageUrl =
     `https://graph.microsoft.com/v1.0/me/messages` +
     `?$select=id,subject,from,receivedDateTime,hasAttachments` +
-    `&$top=50`
+    `&$filter=${encodeURIComponent(`receivedDateTime ge ${sinceIso}`)}` +
+    `&$orderby=${encodeURIComponent('receivedDateTime desc')}` +
+    `&$top=100`
 
-  const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } })
-  const list = await listRes.json()
-  if (!list.value) {
-    console.error('Outlook message list failed:', JSON.stringify(list))
-    return { processed: 0, error: 'graph list failed' }
+  let nextUrl: string | null = firstPageUrl
+  let scanned = 0
+  const matches: any[] = []
+
+  for (let page = 0; page < MAX_LIST_PAGES && nextUrl; page++) {
+    const listRes = await fetch(nextUrl, { headers: { Authorization: `Bearer ${token}` } })
+    const list: any = await listRes.json()
+    if (!list.value) {
+      console.error('Outlook message list failed:', JSON.stringify(list))
+      // A later page failing still leaves the earlier matches worth processing.
+      if (page === 0) return { processed: 0, scanned: 0, matched: 0, error: 'graph list failed' }
+      break
+    }
+
+    scanned += list.value.length
+    for (const meta of list.value) {
+      const fromAddr = meta.from?.emailAddress?.address || ''
+      if (senderMatches(fromAddr, domains)) matches.push(meta)
+    }
+    nextUrl = list['@odata.nextLink'] || null
   }
 
-  const sinceMs = Date.now() - 7 * 86400000
-
+  // Newest first, so a backlog bigger than `limit` drains over repeated runs.
   let processed = 0
-  for (const meta of list.value) {
+  for (const meta of matches) {
     if (processed >= limit) break
-
-    const receivedMs = meta.receivedDateTime ? new Date(meta.receivedDateTime).getTime() : 0
-    if (receivedMs < sinceMs) continue
-
-    const fromAddr = meta.from?.emailAddress?.address || ''
-    if (!senderMatches(fromAddr, domains)) continue
 
     const { data: seen } = await supabase
       .from('outlook_processed_messages')
@@ -154,5 +175,5 @@ export async function syncOutlookConnection(connection: any, limit = 10): Promis
     .update({ last_synced_at: new Date().toISOString() })
     .eq('id', connection.id)
 
-  return { processed }
+  return { processed, scanned, matched: matches.length }
 }
