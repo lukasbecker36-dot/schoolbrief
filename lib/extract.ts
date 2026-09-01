@@ -159,6 +159,8 @@ CATEGORY 1 — SCHOOL EVENTS (things organised by the school happening on a spec
 Examples: trips, sports day, bake off, assemblies, performances, fundraisers, deadlines, school-organised clubs
 Rules:
 - ONLY include events that are organised and run by the school itself
+- RECURRING WEEKLY ACTIVITIES ARE NOT EVENTS: an extra-curricular clubs list, timetable or termly schedule (e.g. "Autumn Term clubs", "clubs list") must NOT become one event per club. A club runs every week for the whole term, so pinning it to a single date is misleading and floods the digest with dozens of entries. Omit every club from events entirely and capture the list as ONE notice instead (see CATEGORY 2).
+- The test is repetition, not who runs it: a one-off session on a named date IS an event; anything described as weekly or termly ("Mondays after school", "every Tuesday", "Fridays 3-3.50pm") is NOT.
 - Extract year-specific events as SEPARATE events — never combine two year groups into one entry
 - YEAR GROUP FILTERING IS ABSOLUTE: If an event mentions a specific year group (e.g. "Year 4 trip", "Y6 visit"), check if any child is in that EXACT year group at that school. If not, OMIT the event entirely from your response. Do NOT include it for "context" or "completeness". Do NOT include it with a note saying "not relevant" or "disregard". Simply do not output it at all.
 - Example: If parent has James in Year 5 at Windmills, and email mentions "Y4 Butser Farm Trip" and "Y6 Brighton Trip", neither of these should appear in your output. They should be omitted completely.
@@ -175,6 +177,7 @@ Examples: staffing changes, policy updates, road safety reminders, general schoo
 Rules:
 - ONLY include notices from the school itself — not third-party advertisements or community notices
 - These are one-off announcements relevant today but not ongoing
+- A clubs list or timetable email becomes a SINGLE notice: say that the term's schedule is out, how to sign up, and above all the deadline. Do NOT list the individual clubs. Set event_date to the sign-up deadline when there is one, so the notice stays in the digest until the day it matters.
 - Include school name in title
 - Also include as a notice any event happening TODAY or TOMORROW that is too soon to add to the calendar meaningfully — these should be captured as notices so parents see them immediately.
 - If a notice relates to something happening on a SPECIFIC day (e.g. an event today or tomorrow, or a one-off arrangement "for today only"), set event_date to that day in YYYY-MM-DD format. For general announcements with no specific day (staffing changes, policy updates), set event_date to null.
