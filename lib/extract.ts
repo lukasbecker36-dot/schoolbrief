@@ -62,6 +62,38 @@ type ExtractInput = {
   endpoint: string // for token usage tracking, e.g. 'webhooks/email' or 'gmail/sync'
 }
 
+// Notice titles are required by the prompt to carry the school name, so a naive
+// shared-word count marks every notice from one school as a duplicate of the
+// last: "Windmills Junior School - Medication in School" and "Windmills Junior
+// School: Packed Lunch Tomorrow" already share two words before you reach what
+// they are about. Drop the school's own words before comparing, and require the
+// overlap to be a real share of the shorter title rather than just two hits.
+const SCHOOL_STOPWORDS = new Set([
+  'school', 'schools', 'junior', 'juniors', 'infant', 'infants', 'primary',
+  'secondary', 'academy', 'college', 'nursery', 'preschool'
+])
+
+function distinctiveWords(title: string, schoolNames: string[]): Set<string> {
+  const noise = new Set(SCHOOL_STOPWORDS)
+  for (const name of schoolNames) {
+    for (const w of String(name).toLowerCase().split(/[^a-z0-9]+/)) {
+      if (w.length > 3) noise.add(w)
+    }
+  }
+  return new Set(
+    String(title).toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3 && !noise.has(w))
+  )
+}
+
+function noticesAreSimilar(a: string, b: string, schoolNames: string[]): boolean {
+  const aw = distinctiveWords(a, schoolNames)
+  const bw = distinctiveWords(b, schoolNames)
+  if (aw.size === 0 || bw.size === 0) return false
+  let common = 0
+  for (const w of aw) if (bw.has(w)) common++
+  return common >= 2 && common >= Math.min(aw.size, bw.size) * 0.5
+}
+
 // Shared extraction pipeline: given the text/PDFs of a single school email,
 // asks Claude to classify it and saves events/notices/learning for the user.
 // Used by both the SendGrid webhook and the Gmail sync job.
@@ -353,12 +385,14 @@ Email body: ${emailText}`
         .eq('category', 'notice')
         .gte('expires_at', todayStr)
 
-      const similarExists = existingNotices?.some((n: any) => {
-        const existingWords = n.title.toLowerCase().split(' ')
-        const newWords = notice.title.toLowerCase().split(' ')
-        const commonWords = existingWords.filter((w: string) => newWords.includes(w) && w.length > 3)
-        return commonWords.length >= 2
-      })
+      const schoolNames = [
+        notice.school_name,
+        ...(children || []).map((c: any) => c.school_name)
+      ].filter(Boolean)
+
+      const similarExists = existingNotices?.some((n: any) =>
+        noticesAreSimilar(n.title, notice.title, schoolNames)
+      )
 
       if (similarExists) {
         console.log('Skipping duplicate notice:', notice.title)
