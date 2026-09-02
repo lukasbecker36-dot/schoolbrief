@@ -1,12 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { Resend } from 'resend'
-
-function titlesOverlap(a: string, b: string) {
-  const aWords = a.toLowerCase().split(/\s+/).filter(w => w.length > 3)
-  const bWords = new Set(b.toLowerCase().split(/\s+/).filter(w => w.length > 3))
-  const common = aWords.filter(w => bWords.has(w))
-  return common.length >= 2
-}
+import { noticesAreSimilar } from '@/lib/text'
 
 function extractTimes(text: string) {
   const matches = (text || '').match(/\b\d{1,2}[:.]\d{2}\s*(?:am|pm)?\b|\b\d{1,2}\s*(?:am|pm)\b/gi) || []
@@ -245,8 +239,18 @@ export async function buildDigestForUser(user: any): Promise<{ html: string; has
   // Dedupe notices that duplicate a This Week event. If the notice mentions a
   // time the calendar event doesn't, flag a possible change on the event rather
   // than showing two contradictory entries.
+  // Every school name this user's own rows mention, so the shared comparison
+  // can discount them. Without this a notice was hidden whenever it shared the
+  // school prefix and any one generic word with an unrelated event: a clubs
+  // sign-up deadline disappeared because a Bikeability event also said
+  // "deadline".
+  const schoolNames = [
+    ...(allEvents || []).map((e: any) => e.school_name),
+    ...(allNotices || []).map((n: any) => n.school_name)
+  ].filter(Boolean)
+
   const notices = rawNotices.filter(notice => {
-    const match = thisWeek.find(e => titlesOverlap(e.title, notice.title))
+    const match = thisWeek.find(e => noticesAreSimilar(e.title, notice.title, schoolNames))
     if (!match) return true
 
     const eventTimes = extractTimes(`${match.title} ${match.description}`)
