@@ -3,7 +3,42 @@ import { supabase } from '@/lib/supabase'
 import { Resend } from 'resend'
 import { extractAndSave } from '@/lib/extract'
 
+// Audit trail for forwarded mail. This route answers 200 to everything so that
+// SendGrid never retries, which means a failure is otherwise invisible: no row,
+// no subject, nothing to tell a parent why their email never appeared. Best
+// effort only -- an audit write must never break delivery, and it no-ops until
+// the table exists.
+async function recordInbound(toAddress: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('inbound_emails')
+      .insert({ to_address: toAddress || null, outcome: 'received' })
+      .select('id')
+      .single()
+    if (error) {
+      console.error('inbound_emails insert failed:', error.message)
+      return null
+    }
+    return data?.id ?? null
+  } catch (err) {
+    console.error('inbound_emails insert threw:', err)
+    return null
+  }
+}
+
+async function updateInbound(id: string | null, fields: Record<string, any>) {
+  if (!id) return
+  try {
+    const { error } = await supabase.from('inbound_emails').update(fields).eq('id', id)
+    if (error) console.error('inbound_emails update failed:', error.message)
+  } catch (err) {
+    console.error('inbound_emails update threw:', err)
+  }
+}
+
 export async function POST(req: Request) {
+  let inboundId: string | null = null
+
   try {
     // Shared-secret check so only SendGrid (whose Inbound Parse URL includes
     // ?secret=...) can feed us email. Enforced only once WEBHOOK_SECRET is set,
@@ -22,9 +57,18 @@ export async function POST(req: Request) {
     const to = formData.get('to') as string
     const rawEmail = formData.get('email') as string
 
+    // Logged before parsing: a malformed MIME that breaks simpleParser is one
+    // of the ways an email can disappear here, and it has to leave a trace.
+    inboundId = await recordInbound(to)
+
     const parsed = await simpleParser(rawEmail)
     const emailText = parsed.text || ''
     const subject = parsed.subject || ''
+
+    await updateInbound(inboundId, {
+      from_address: parsed.from?.value?.[0]?.address || parsed.from?.text || null,
+      subject
+    })
 
     console.log('📧 Email received!')
     console.log('To:', to)
@@ -41,10 +85,12 @@ export async function POST(req: Request) {
 
     if (!user) {
       console.log('No user found for address:', inboundAddress)
+      await updateInbound(inboundId, { outcome: 'no_user' })
       return new Response('ok', { status: 200 })
     }
 
     console.log('Found user:', user.email)
+    await updateInbound(inboundId, { user_id: user.id })
 
     // Detect Gmail forwarding confirmation email and forward to parent
     const isGmailConfirmation =
@@ -75,6 +121,7 @@ export async function POST(req: Request) {
       })
 
       console.log('✅ Confirmation email forwarded to', user.email)
+      await updateInbound(inboundId, { outcome: 'forwarding_confirmation' })
       return new Response('ok', { status: 200 })
     }
 
@@ -91,6 +138,7 @@ export async function POST(req: Request) {
       (outlookConn?.school_domains?.length ?? 0) > 0
     if (hasActiveConnection) {
       console.log('User has an active email connection — skipping forwarded copy to avoid double-processing')
+      await updateInbound(inboundId, { outcome: 'skipped_connection' })
       return new Response('ok', { status: 200 })
     }
 
@@ -138,10 +186,15 @@ export async function POST(req: Request) {
     })
 
     console.log('✅ Done!')
+    await updateInbound(inboundId, { outcome: 'extracted' })
     return new Response('ok', { status: 200 })
 
   } catch (err) {
     console.error('Error:', err)
+    await updateInbound(inboundId, {
+      outcome: 'error',
+      error: err instanceof Error ? err.message : String(err)
+    })
     return new Response('ok', { status: 200 })
   }
 }
