@@ -60,6 +60,7 @@ function renderEventGroup(events: any[]) {
             <br>
             <span style="color: #666; font-size: 14px;">${e.description}</span>
             ${e.conflictNote ? `<br><span style="color: #b45309; font-size: 13px;">⚠️ ${e.conflictNote}</span>` : ''}
+            ${e.moreDetail ? `<br><span style="color: #888; font-size: 13px;">See the school's original email for the full details.</span>` : ''}
           </td>
         </tr>
       `).join('')
@@ -84,6 +85,7 @@ function renderListGroup(events: any[]) {
         ${e.action_required ? '<span style="background:#fff3cd;color:#856404;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:8px;">Action needed</span>' : ''}
         <br>
         <span style="color: #666; font-size: 14px;">${e.description}</span>
+        ${e.moreDetail ? `<br><span style="color: #888; font-size: 13px;">See the school's original email for the full details.</span>` : ''}
       </td>
     </tr>
   `).join('')
@@ -258,6 +260,17 @@ export async function buildDigestForUser(user: any): Promise<{ html: string; has
       noticeRestatesEvent(notice.title, notice.event_date || null, e.title, e.event_date, schoolNames)
     )
     if (!match) return true
+
+    // The notice we are dropping often carried far more than the event's one
+    // line -- the Bikeability notice ran 632 characters against the event's
+    // 126, with the kit list, the 1:2 on-road ratio and the SEND contact. Point
+    // the parent at the source rather than losing that silently. Only when the
+    // notice is genuinely fuller, not merely a longer way of saying the same.
+    const noticeLength = (notice.content || '').length
+    const eventLength = (match.description || '').length
+    if (noticeLength > eventLength * 1.5 && noticeLength - eventLength >= 150) {
+      match.moreDetail = true
+    }
 
     const eventTimes = extractTimes(`${match.title} ${match.description}`)
     const noticeTimes = extractTimes(`${notice.title} ${notice.content}`)
