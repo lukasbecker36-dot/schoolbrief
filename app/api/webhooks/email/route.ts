@@ -147,7 +147,12 @@ export async function POST(req: Request) {
         ? await readRawMime(rawEmail)
         : await readParsedFields(formData)
 
-    const emailText = inbound.text
+    // SendGrid only sends a `text` field when the message has a text/plain
+    // part, and mailparser likewise leaves it empty for HTML-only mail. Without
+    // a fallback the body reaching Claude would be empty and the email would
+    // extract nothing, having apparently arrived fine. The Gmail sync already
+    // does this.
+    const emailText = inbound.text || inbound.html.replace(/<[^>]+>/g, ' ')
     const subject = inbound.subject
 
     await updateInbound(inboundId, {
