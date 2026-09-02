@@ -141,6 +141,7 @@ export async function syncOutlookConnection(
     const emailText = isHtml ? emailHtml.replace(/<[^>]+>/g, ' ') : (msg.body?.content || '')
 
     const pdfBuffers: Buffer[] = []
+    const docxBuffers: Buffer[] = []
     if (msg.hasAttachments) {
       const attRes = await fetch(
         `https://graph.microsoft.com/v1.0/me/messages/${meta.id}/attachments`,
@@ -148,12 +149,15 @@ export async function syncOutlookConnection(
       )
       const att = await attRes.json()
       for (const a of att.value || []) {
-        if (
-          a['@odata.type'] === '#microsoft.graph.fileAttachment' &&
-          (a.contentType === 'application/pdf' || a.name?.toLowerCase().endsWith('.pdf')) &&
-          a.contentBytes
-        ) {
+        if (a['@odata.type'] !== '#microsoft.graph.fileAttachment' || !a.contentBytes) continue
+        const name = String(a.name || '').toLowerCase()
+        if (a.contentType === 'application/pdf' || name.endsWith('.pdf')) {
           pdfBuffers.push(Buffer.from(a.contentBytes, 'base64'))
+        } else if (
+          a.contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          name.endsWith('.docx')
+        ) {
+          docxBuffers.push(Buffer.from(a.contentBytes, 'base64'))
         }
       }
     }
@@ -167,6 +171,7 @@ export async function syncOutlookConnection(
         emailText,
         emailHtml,
         pdfBuffers,
+        docxBuffers,
         endpoint: 'outlook/sync'
       })
     } catch (err) {

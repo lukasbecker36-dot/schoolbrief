@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import Anthropic from '@anthropic-ai/sdk'
+import mammoth from 'mammoth'
 
 // A start-of-term newsletter can carry dozens of events; at 4096 the reply was
 // cut off mid-JSON, the parse threw, and the email was marked processed with
@@ -59,6 +60,7 @@ type ExtractInput = {
   emailText: string
   emailHtml?: string
   pdfBuffers?: Buffer[]
+  docxBuffers?: Buffer[]
   endpoint: string // for token usage tracking, e.g. 'webhooks/email' or 'gmail/sync'
 }
 
@@ -103,6 +105,7 @@ export async function extractAndSave({
   emailText,
   emailHtml = '',
   pdfBuffers = [],
+  docxBuffers = [],
   endpoint
 }: ExtractInput) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -172,6 +175,21 @@ export async function extractAndSave({
       }
     } catch (err) {
       console.error('Failed to fetch PDF from URL:', url, err)
+    }
+  }
+
+  // Claude accepts PDFs as documents but not Word files, so pull the text out
+  // and append it to the body. School letters are routinely .docx -- the
+  // Bikeability parent letter carrying the course dates was one, and its
+  // contents were being dropped on the floor.
+  let attachmentText = ''
+  for (const docx of docxBuffers) {
+    try {
+      const { value } = await mammoth.extractRawText({ buffer: docx })
+      const text = (value || '').trim()
+      if (text) attachmentText += `\n\n--- Attached Word document ---\n${text}`
+    } catch (err) {
+      console.error('Failed to read .docx attachment:', err)
     }
   }
 
@@ -279,7 +297,7 @@ Return ONLY a JSON object in this exact format, no other text:
 
 Today's date is ${new Date().toISOString().split('T')[0]}.
 Email subject: ${subject}
-Email body: ${emailText}`
+Email body: ${emailText}${attachmentText}`
   })
 
   const message = await anthropic.messages.create({

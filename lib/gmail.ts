@@ -56,6 +56,7 @@ function parseGmailMessage(message: any) {
   let text = ''
   let html = ''
   const pdfParts: { attachmentId: string }[] = []
+  const docxParts: { attachmentId: string }[] = []
 
   function walk(part: any) {
     if (!part) return
@@ -69,12 +70,18 @@ function parseGmailMessage(message: any) {
       part.body?.attachmentId
     ) {
       pdfParts.push({ attachmentId: part.body.attachmentId })
+    } else if (
+      (mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        part.filename?.toLowerCase().endsWith('.docx')) &&
+      part.body?.attachmentId
+    ) {
+      docxParts.push({ attachmentId: part.body.attachmentId })
     }
     for (const sub of part.parts || []) walk(sub)
   }
   walk(message.payload)
 
-  return { subject, text, html, pdfParts }
+  return { subject, text, html, pdfParts, docxParts }
 }
 
 async function fetchAttachment(token: string, messageId: string, attachmentId: string): Promise<Buffer | null> {
@@ -139,12 +146,18 @@ export async function syncConnection(
       { headers: { Authorization: `Bearer ${token}` } }
     )
     const message = await msgRes.json()
-    const { subject, text, html, pdfParts } = parseGmailMessage(message)
+    const { subject, text, html, pdfParts, docxParts } = parseGmailMessage(message)
 
     const pdfBuffers: Buffer[] = []
     for (const p of pdfParts) {
       const buf = await fetchAttachment(token, m.id, p.attachmentId)
       if (buf) pdfBuffers.push(buf)
+    }
+
+    const docxBuffers: Buffer[] = []
+    for (const d of docxParts) {
+      const buf = await fetchAttachment(token, m.id, d.attachmentId)
+      if (buf) docxBuffers.push(buf)
     }
 
     let extractionError: string | undefined
@@ -155,6 +168,7 @@ export async function syncConnection(
         emailText: text || html.replace(/<[^>]+>/g, ' '),
         emailHtml: html,
         pdfBuffers,
+        docxBuffers,
         endpoint: 'gmail/sync'
       })
     } catch (err) {
