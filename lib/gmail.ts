@@ -100,7 +100,8 @@ async function fetchAttachment(token: string, messageId: string, attachmentId: s
 export async function syncConnection(
   connection: any,
   limit = 10,
-  deadline: number = Date.now() + SYNC_TIME_BUDGET_MS
+  deadline: number = Date.now() + SYNC_TIME_BUDGET_MS,
+  windowDays = 7
 ): Promise<{ processed: number; stoppedEarly?: boolean; error?: string }> {
   const domains: string[] = connection.school_domains || []
   if (domains.length === 0) return { processed: 0, error: 'no school domains set' }
@@ -115,7 +116,7 @@ export async function syncConnection(
     .single()
   if (!user) return { processed: 0, error: 'user not found' }
 
-  const query = `from:(${domains.join(' OR ')}) newer_than:7d`
+  const query = `from:(${domains.join(' OR ')}) newer_than:${windowDays}d`
   const listRes = await fetch(
     `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${limit}`,
     { headers: { Authorization: `Bearer ${token}` } }

@@ -57,7 +57,8 @@ function senderMatches(fromAddr: string, domains: string[]) {
 export async function syncOutlookConnection(
   connection: any,
   limit = 10,
-  deadline: number = Date.now() + SYNC_TIME_BUDGET_MS
+  deadline: number = Date.now() + SYNC_TIME_BUDGET_MS,
+  windowDays = 7
 ): Promise<{ processed: number; scanned?: number; matched?: number; stoppedEarly?: boolean; error?: string }> {
   const domains: string[] = connection.school_domains || []
   if (domains.length === 0) return { processed: 0, error: 'no school domains set' }
@@ -79,7 +80,7 @@ export async function syncOutlookConnection(
   // page through the window. Ordering rule: a property in $orderby must also
   // appear in $filter, ahead of any other property, or Graph rejects the query
   // with InefficientFilter.
-  const sinceIso = new Date(Date.now() - 7 * 86400000).toISOString()
+  const sinceIso = new Date(Date.now() - windowDays * 86400000).toISOString()
   const firstPageUrl =
     `https://graph.microsoft.com/v1.0/me/messages` +
     `?$select=id,subject,from,receivedDateTime,hasAttachments` +
