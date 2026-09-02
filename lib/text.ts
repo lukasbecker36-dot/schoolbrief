@@ -21,17 +21,51 @@ export function distinctiveWords(title: string, schoolNames: string[]): Set<stri
       if (w.length > 3) noise.add(w)
     }
   }
-  return new Set(
-    String(title).toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 3 && !noise.has(w))
-  )
+  const words = new Set<string>()
+  for (const raw of String(title).split(/[^A-Za-z0-9]+/)) {
+    if (!raw) continue
+    const w = raw.toLowerCase()
+    if (noise.has(w)) continue
+    // An all-caps token is an acronym (PGL, PTA, SEND) and is as distinctive as
+    // a long word, so don't discard it for being short.
+    const isAcronym = raw.length >= 2 && raw === raw.toUpperCase() && /[A-Z]/.test(raw)
+    if (w.length > 3 || isAcronym) words.add(w)
+  }
+  return words
 }
 
+export function sharedDistinctiveWords(a: string, b: string, schoolNames: string[]): number {
+  const aw = distinctiveWords(a, schoolNames)
+  const bw = distinctiveWords(b, schoolNames)
+  let common = 0
+  for (const w of aw) if (bw.has(w)) common++
+  return common
+}
+
+// Is this notice a repeat of one already saved? Used at extraction time.
 export function noticesAreSimilar(a: string, b: string, schoolNames: string[]): boolean {
   const aw = distinctiveWords(a, schoolNames)
   const bw = distinctiveWords(b, schoolNames)
   if (aw.size === 0 || bw.size === 0) return false
-  let common = 0
-  for (const w of aw) if (bw.has(w)) common++
+  const common = sharedDistinctiveWords(a, b, schoolNames)
   return common >= 2 && common >= Math.min(aw.size, bw.size) * 0.5
+}
+
+// Does this notice restate an event the digest already shows? A shared day is
+// the strong signal -- a notice dated the same day as an event, with any word
+// in common, is almost always the same item said twice ("PGL Medical Consent
+// Form" against "PGL Residential Trip" on the 14th). Without a shared day it
+// takes two words, so an unrelated notice that merely says "deadline" survives.
+export function noticeRestatesEvent(
+  noticeTitle: string,
+  noticeDate: string | null,
+  eventTitle: string,
+  eventDate: string | null,
+  schoolNames: string[]
+): boolean {
+  const shared = sharedDistinctiveWords(noticeTitle, eventTitle, schoolNames)
+  if (shared === 0) return false
+  if (noticeDate && eventDate && noticeDate === eventDate) return true
+  return shared >= 2
 }
 

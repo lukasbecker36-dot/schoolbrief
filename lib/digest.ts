@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { Resend } from 'resend'
-import { noticesAreSimilar } from '@/lib/text'
+import { noticeRestatesEvent } from '@/lib/text'
 
 function extractTimes(text: string) {
   const matches = (text || '').match(/\b\d{1,2}[:.]\d{2}\s*(?:am|pm)?\b|\b\d{1,2}\s*(?:am|pm)\b/gi) || []
@@ -249,8 +249,14 @@ export async function buildDigestForUser(user: any): Promise<{ html: string; has
     ...(allNotices || []).map((n: any) => n.school_name)
   ].filter(Boolean)
 
+  // Compare against everything the digest will show, not just this week --
+  // the PGL consent notice restates a trip that sits in Looking ahead.
+  const upcoming = [...thisWeek, ...lookingAhead]
+
   const notices = rawNotices.filter(notice => {
-    const match = thisWeek.find(e => noticesAreSimilar(e.title, notice.title, schoolNames))
+    const match = upcoming.find(e =>
+      noticeRestatesEvent(notice.title, notice.event_date || null, e.title, e.event_date, schoolNames)
+    )
     if (!match) return true
 
     const eventTimes = extractTimes(`${match.title} ${match.description}`)
