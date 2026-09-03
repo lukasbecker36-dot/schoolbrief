@@ -110,7 +110,7 @@ export async function syncConnection(
   limit = 10,
   deadline: number = Date.now() + SYNC_TIME_BUDGET_MS,
   windowDays = 7
-): Promise<{ processed: number; stoppedEarly?: boolean; error?: string }> {
+): Promise<{ processed: number; found?: number; query?: string; stoppedEarly?: boolean; error?: string }> {
   const domains: string[] = connection.school_domains || []
   if (domains.length === 0) return { processed: 0, error: 'no school domains set' }
 
@@ -130,6 +130,12 @@ export async function syncConnection(
     { headers: { Authorization: `Bearer ${token}` } }
   )
   const list = await listRes.json()
+  if (!listRes.ok || list.error) {
+    // A bad query or a revoked scope used to look identical to an empty inbox.
+    console.error('Gmail message list failed:', JSON.stringify(list.error || list))
+    return { processed: 0, found: 0, query, error: list.error?.message || 'gmail list failed' }
+  }
+  // Server-side filtered, so everything returned already matches the senders.
   const messages = list.messages || []
 
   let processed = 0
@@ -202,5 +208,5 @@ export async function syncConnection(
     .update({ last_synced_at: new Date().toISOString() })
     .eq('id', connection.id)
 
-  return { processed, stoppedEarly }
+  return { processed, found: messages.length, query, stoppedEarly }
 }
