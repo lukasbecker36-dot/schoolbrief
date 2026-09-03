@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { encrypt, decrypt } from '@/lib/crypto'
 import { extractAndSave, recordProcessedMessage, SYNC_TIME_BUDGET_MS } from '@/lib/extract'
+import { recordConnectionFailure, clearConnectionError } from '@/lib/connections'
 
 const TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
 export const OUTLOOK_SCOPE = 'offline_access Mail.Read User.Read'
@@ -34,8 +35,12 @@ async function getAccessToken(connection: any): Promise<string | null> {
   const tokens = await res.json()
   if (!tokens.access_token) {
     console.error('Failed to refresh Outlook token', tokens)
+    const detail = [tokens.error, tokens.error_description].filter(Boolean).join(': ') || 'token refresh failed'
+    await recordConnectionFailure('outlook_connections', connection, detail)
     return null
   }
+
+  await clearConnectionError('outlook_connections', connection)
 
   const update: any = {
     access_token: encrypt(tokens.access_token),

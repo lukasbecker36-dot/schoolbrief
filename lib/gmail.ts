@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { encrypt, decrypt } from '@/lib/crypto'
 import { extractAndSave, recordProcessedMessage, SYNC_TIME_BUDGET_MS } from '@/lib/extract'
+import { recordConnectionFailure, clearConnectionError } from '@/lib/connections'
 
 // Returns a valid access token for a connection, refreshing via the stored
 // refresh token if the cached one has expired. Returns null if refresh fails
@@ -28,8 +29,15 @@ async function getAccessToken(connection: any): Promise<string | null> {
   const tokens = await res.json()
   if (!tokens.access_token) {
     console.error('Failed to refresh Gmail token', tokens)
+    // invalid_grant means the token is gone for good, not a transient blip: the
+    // grant was revoked, or it expired (Google issues 7-day refresh tokens while
+    // the OAuth app's publishing status is "Testing").
+    const detail = [tokens.error, tokens.error_description].filter(Boolean).join(': ') || 'token refresh failed'
+    await recordConnectionFailure('gmail_connections', connection, detail)
     return null
   }
+
+  await clearConnectionError('gmail_connections', connection)
 
   const newExpiry = new Date(now + (tokens.expires_in || 3600) * 1000).toISOString()
   await supabase
