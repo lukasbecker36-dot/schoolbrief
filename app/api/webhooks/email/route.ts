@@ -78,6 +78,36 @@ const isDocx = (a: InboundAttachment) =>
 const isEml = (a: InboundAttachment) =>
   a.contentType === 'message/rfc822' || a.filename.toLowerCase().endsWith('.eml')
 
+// Which of our inbound addresses was this actually delivered to?
+//
+// The To: header is not the answer. Gmail's filter-based auto-forwarding leaves
+// the original header intact -- the school addressed the mail to the parent, so
+// the header says "lukasbecker36@gmail.com" and our address appears nowhere in
+// it. Matching on the header alone dropped every auto-forwarded email as
+// "no_user", which was half of all inbound mail and two of the three beta users.
+//
+// SendGrid sends the SMTP envelope (the real RCPT TO) in both raw and parsed
+// modes, so take candidates from there first, then from every address in the
+// header, which covers mail forwarded by hand.
+function recipientCandidates(formData: FormData, toHeader: string): string[] {
+  const candidates: string[] = []
+
+  try {
+    const envelope = JSON.parse(String(formData.get('envelope') || '{}'))
+    for (const addr of envelope?.to || []) if (addr) candidates.push(String(addr))
+  } catch {
+    // envelope is advisory; the header candidates below still apply.
+  }
+
+  for (const match of String(toHeader || '').matchAll(/[^\s<>,"]+@[^\s<>,"]+/g)) {
+    candidates.push(match[0])
+  }
+
+  return [...new Set(
+    candidates.map(a => a.trim().toLowerCase().replace(/^<+|>+$/g, '')).filter(Boolean)
+  )]
+}
+
 function addressOf(fromText: string): string | null {
   const angled = fromText.match(/<([^>]+)>/)
   return (angled ? angled[1] : fromText).trim() || null
@@ -166,16 +196,17 @@ export async function POST(req: Request) {
     console.log('Subject:', subject)
     console.log('Attachments:', inbound.attachments.length)
 
-    // Find the user
-    const inboundAddress = to.split('<').pop()?.replace('>', '').trim() || to
-    const { data: user } = await supabase
-      .from('users')
-      .select('*')
-      .eq('inbound_address', inboundAddress)
-      .single()
+    // Find the user by any address this was delivered to.
+    const candidates = recipientCandidates(formData, to)
+    console.log('Recipient candidates:', candidates.join(', ') || '(none)')
+
+    const { data: users } = candidates.length
+      ? await supabase.from('users').select('*').in('inbound_address', candidates)
+      : { data: [] as any[] }
+    const user = users?.[0]
 
     if (!user) {
-      console.log('No user found for address:', inboundAddress)
+      console.log('No user found for any of:', candidates.join(', ') || '(none)')
       await updateInbound(inboundId, { outcome: 'no_user' })
       return new Response('ok', { status: 200 })
     }
