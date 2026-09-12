@@ -20,9 +20,16 @@ import { SCHOOL_STOPWORDS } from '@/lib/text'
 
 // "Year 4", "Yr4", "Y5", "Years 4 and 5", "Y3-Y6", "Y4/Y5"
 const YEAR_PHRASE = /\b(?:years?|yrs?|y)\s*\.?\s*(\d{1,2}(?:\s*(?:-|–|\/|,|&|and|to)\s*(?:y(?:ear)?s?\s*)?\d{1,2})*)/gi
+
 // Class codes carry the year: 4WH, 4TW, 6JB. Two capitals keeps this tight
 // enough to avoid times and dates.
 const CLASS_CODE = /\b(\d{1,2})[A-Z]{2}\b/g
+
+// "Reception to Year 11", "Reception - Y6", "Nursery through to Year 2".
+// A whole-school span written this way names only its endpoints.
+const SPAN_FROM_RECEPTION =
+  /\b(reception|nursery)\b[^.]{0,24}?(?:-|–|to|through|up\s*to|until)[^.]{0,16}?(?:year|yr|y)\s*\.?\s*(\d{1,2})\b/gi
+
 const KEY_STAGES: Record<string, number[]> = {
   ks1: [1, 2],
   ks2: [3, 4, 5, 6],
@@ -30,9 +37,12 @@ const KEY_STAGES: Record<string, number[]> = {
   ks4: [10, 11]
 }
 
-function addRange(into: Set<string>, from: number, to: number) {
+function addRange(into: Set<string>, from: number, to: number, wide = false) {
   if (to < from) [from, to] = [to, from]
-  if (to - from > 6) return // implausible as a year range; ignore rather than flood
+  // A bare numeric span of more than six years is more likely two unrelated
+  // numbers than a real range, so ignore it -- unless the caller knows it is a
+  // genuine whole-school span.
+  if (!wide && to - from > 6) return
   for (let y = from; y <= to; y++) if (y >= 1 && y <= 13) into.add(String(y))
 }
 
@@ -47,6 +57,16 @@ export function mentionedYearGroups(text: string): string[] {
 
   for (const [stage, years] of Object.entries(KEY_STAGES)) {
     if (new RegExp(`\\b${stage}\\b`, 'i').test(raw)) for (const y of years) found.add(String(y))
+  }
+
+  // A span from Reception up to a numbered year covers everything in between:
+  // "open to pupils from Reception to Year 11" names reception and 11 but means
+  // all of them. Unexpanded, a family with a Year 2 child looked like no match
+  // and the item was dropped -- which is exactly what happened to an MP's
+  // Christmas card competition open to the whole school.
+  for (const match of raw.matchAll(SPAN_FROM_RECEPTION)) {
+    found.add('reception')
+    addRange(found, 1, Number(match[2]), true)
   }
 
   for (const match of raw.matchAll(YEAR_PHRASE)) {
