@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { syncConnection } from '@/lib/gmail'
 import { syncOutlookConnection } from '@/lib/outlook'
 import { SYNC_TIME_BUDGET_MS } from '@/lib/extract'
+import { promoteYearGroupsIfDue } from '@/lib/schoolyear'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -13,6 +14,11 @@ export async function GET(req: Request) {
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('Unauthorized', { status: 401 })
   }
+
+  // Move children up a year first if 1 September has passed, so the day's
+  // extractions and the year-group filter both use current year groups.
+  // Idempotent, so running it from both crons is harmless.
+  const rollover = await promoteYearGroupsIfDue()
 
   // One budget for the whole run, not per connection, so the last connection
   // in the list can't be starved by the ones before it.
@@ -42,5 +48,5 @@ export async function GET(req: Request) {
     report.push({ provider: 'outlook', user_id: conn.user_id, ...result })
   }
 
-  return Response.json({ message: `Processed ${total} new emails`, report })
+  return Response.json({ message: `Processed ${total} new emails`, rollover, report })
 }

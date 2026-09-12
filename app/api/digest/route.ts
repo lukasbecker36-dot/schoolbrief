@@ -1,11 +1,16 @@
 import { supabase } from '@/lib/supabase'
 import { sendDigestForUser } from '@/lib/digest'
+import { promoteYearGroupsIfDue } from '@/lib/schoolyear'
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('Unauthorized', { status: 401 })
   }
+
+  // Belt and braces: if the sync cron failed, the year still turns over here
+  // before any digest goes out. Idempotent, so a second call does nothing.
+  const rollover = await promoteYearGroupsIfDue()
 
   const { data: users } = await supabase
     .from('users')
@@ -25,5 +30,5 @@ export async function GET(req: Request) {
     }
   }
 
-  return Response.json({ message: `Sent ${emailsSent} digests` })
+  return Response.json({ message: `Sent ${emailsSent} digests`, rollover })
 }

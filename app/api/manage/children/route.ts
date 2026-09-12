@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { getSessionUser } from '@/lib/auth'
+import { academicYearStart } from '@/lib/schoolyear'
 
 export const runtime = 'nodejs'
 
@@ -25,7 +26,15 @@ export async function POST(req: Request) {
 
   const { data: child, error } = await supabase
     .from('children')
-    .insert({ user_id: user.id, name, year_level: yearLevel, school_name: schoolName })
+    // Stamp the academic year this year group was given for, so the 1 September
+    // rollover knows whether it has already been applied to this child.
+    .insert({
+      user_id: user.id,
+      name,
+      year_level: yearLevel,
+      school_name: schoolName,
+      year_updated_for: academicYearStart()
+    })
     .select()
     .single()
 
@@ -60,7 +69,7 @@ export async function PATCH(req: Request) {
 
   await supabase
     .from('children')
-    .update({ year_level: yearLevel })
+    .update({ year_level: yearLevel, year_updated_for: academicYearStart() })
     .eq('id', childId)
     .eq('user_id', user.id)
 
