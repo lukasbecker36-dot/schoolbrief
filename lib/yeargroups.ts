@@ -119,16 +119,29 @@ function childrenAtSchool(children: any[], schoolName: string | null | undefined
 }
 
 // Should this extracted item be kept for this family?
+//
+// The title is judged on its own when it names a year group, because a
+// description cannot be trusted to be about the same year: the model excuses
+// itself in prose -- "this is for Y4 families only; Sam is in Y3 so this is not
+// directly relevant but included as a whole-school diary item" -- and naming the
+// child's own year there would otherwise smuggle the item straight past a check
+// on the combined text. The title is the label the parent reads, so the title
+// decides. Only when the title names no year group at all does the description
+// get a say.
 export function matchesAChildsYearGroup(
-  text: string,
+  title: string,
+  description: string | null | undefined,
   schoolName: string | null | undefined,
   children: any[]
 ): boolean {
-  const mentioned = mentionedYearGroups(text)
-  if (mentioned.length === 0) return true // whole-school or unspecified
-
   const relevant = childrenAtSchool(children || [], schoolName)
   if (relevant.length === 0) return true // no children on record: keep everything
+  const childYears = relevant.map(c => canonicalYearLevel(c.year_level))
 
-  return relevant.some(c => mentioned.includes(canonicalYearLevel(c.year_level)))
+  const titleYears = mentionedYearGroups(title)
+  if (titleYears.length > 0) return titleYears.some(yr => childYears.includes(yr))
+
+  const bodyYears = mentionedYearGroups(`${title || ''} ${description || ''}`)
+  if (bodyYears.length === 0) return true // whole-school or unspecified
+  return bodyYears.some(yr => childYears.includes(yr))
 }

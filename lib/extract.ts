@@ -310,8 +310,7 @@ Email body: ${emailText}${attachmentText}`
   // year groups, none of which belong to a child at that school, is dropped.
   const droppedForYearGroup: string[] = []
   const rightYearGroup = (item: any) => {
-    const text = `${item?.title || ''} ${item?.description || ''}`
-    if (matchesAChildsYearGroup(text, item?.school_name, children || [])) return true
+    if (matchesAChildsYearGroup(item?.title || '', item?.description, item?.school_name, children || [])) return true
     droppedForYearGroup.push(String(item?.title || '(untitled)'))
     return false
   }
@@ -329,8 +328,32 @@ Email body: ${emailText}${attachmentText}`
 
   console.log(`Extracted: ${events.length} events, ${otherEvents.length} other events, ${notices.length} notices, ${learning.length} learning`)
 
+  // The same email can be forwarded more than once, and three copies arriving
+  // within four minutes each read the existing-events list before the others had
+  // written to it -- so the prompt-level dedupe saw nothing and the digest showed
+  // the same event twice. Check at the point of insert instead, against the same
+  // date only, so distinct events never collapse into each other.
+  const schoolNamesForDedupe = [
+    ...(children || []).map((c: any) => c.school_name)
+  ].filter(Boolean)
+
+  const alreadySaved = async (event: any) => {
+    if (!event?.event_date) return false
+    const { data: sameDay } = await supabase
+      .from('events')
+      .select('title')
+      .eq('user_id', user.id)
+      .eq('event_date', event.event_date)
+    const clash = (sameDay || []).find((e: any) =>
+      noticesAreSimilar(e.title, event.title, [...schoolNamesForDedupe, event.school_name].filter(Boolean))
+    )
+    if (clash) console.log(`Skipping duplicate event: ${event.title} (matches "${clash.title}")`)
+    return !!clash
+  }
+
   // Save school events
   for (const event of events) {
+    if (await alreadySaved(event)) continue
     await supabase.from('events').insert({
       user_id: user.id,
       title: event.title,
@@ -345,6 +368,7 @@ Email body: ${emailText}${attachmentText}`
 
   // Save other events
   for (const event of otherEvents) {
+    if (await alreadySaved(event)) continue
     await supabase.from('events').insert({
       user_id: user.id,
       title: event.title,
