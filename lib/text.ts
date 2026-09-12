@@ -69,3 +69,39 @@ export function noticeRestatesEvent(
   return shared >= 2
 }
 
+
+// Does this notice title just label the email it came from, rather than saying
+// anything of its own? A newsletter produced "Windmills: General Newsletter --
+// 11th September 2026" whose body recapped the school photos, the Y3 snack, the
+// arrival times and the clubs -- every one of which was already its own notice.
+// The umbrella adds nothing but length.
+//
+// Detected by what is left after the school's own words are removed: if every
+// remaining word is either newsletter vocabulary or part of a date, the title
+// names no subject. "Newsletter: Parking Changes" keeps "parking" and "changes",
+// so it survives.
+const SUMMARY_WORDS = new Set([
+  'newsletter', 'newsletters', 'general', 'weekly', 'round', 'roundup', 'update',
+  'updates', 'bulletin', 'news', 'summary', 'digest', 'edition'
+])
+
+const MONTHS = new Set([
+  'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august',
+  'september', 'october', 'november', 'december',
+  'jan', 'feb', 'mar', 'apr', 'jun', 'jul', 'aug', 'sept', 'sep', 'oct', 'nov', 'dec'
+])
+
+function isDateWord(word: string): boolean {
+  if (MONTHS.has(word)) return true
+  if (/^\d{1,2}(st|nd|rd|th)$/.test(word)) return true
+  if (/^(19|20)\d{2}$/.test(word)) return true
+  return false
+}
+
+export function isUmbrellaSummary(title: string, schoolNames: string[]): boolean {
+  const words = [...distinctiveWords(title, schoolNames)]
+  if (words.length === 0) return false
+  const mentionsSummary = words.some(w => SUMMARY_WORDS.has(w))
+  if (!mentionsSummary) return false
+  return words.every(w => SUMMARY_WORDS.has(w) || isDateWord(w))
+}

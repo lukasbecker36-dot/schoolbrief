@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import Anthropic from '@anthropic-ai/sdk'
 import mammoth from 'mammoth'
-import { noticesAreSimilar } from '@/lib/text'
+import { noticesAreSimilar, isUmbrellaSummary } from '@/lib/text'
 import { matchesAChildsYearGroup } from '@/lib/yeargroups'
 
 // A start-of-term newsletter can carry dozens of events; at 4096 the reply was
@@ -197,6 +197,7 @@ Examples: staffing changes, policy updates, road safety reminders, general schoo
 Rules:
 - ONLY include notices from the school itself — not third-party advertisements or community notices
 - These are one-off announcements relevant today but not ongoing
+- Do NOT produce a catch-all notice summarising the email as a whole (e.g. "General Newsletter — 11th September") when its contents are already being extracted as individual notices and events. Extract the individual items; the summary duplicates them and adds nothing. Only summarise the email as one notice if it contains nothing that stands alone.
 - A clubs list or timetable email becomes a SINGLE notice: say that the term's schedule is out, how to sign up, and above all the deadline. Do NOT list the individual clubs. Set event_date to the sign-up deadline when there is one, so the notice stays in the digest until the day it matters. The deadline is also extracted as an event (see CATEGORY 1); the notice carries the detail, the event carries the date.
 - Include school name in title
 - Also include as a notice any event happening TODAY or TOMORROW that is too soon to add to the calendar meaningfully — these should be captured as notices so parents see them immediately.
@@ -323,8 +324,25 @@ Email body: ${emailText}${attachmentText}`
       droppedForYearGroup.join(' | ')
     )
   }
-  const notices = result.notices || []
+  const rawNotices = result.notices || []
   const learning = result.learning || []
+
+  // Drop a notice that merely labels the email ("General Newsletter -- 11th
+  // September") when its contents have already been extracted as their own
+  // notices and events. If it is the only thing we got, keep it: better a
+  // summary than nothing.
+  const umbrellaSchoolNames = [
+    ...(children || []).map((c: any) => c.school_name),
+    ...rawNotices.map((n: any) => n.school_name)
+  ].filter(Boolean)
+  const specificNotices = rawNotices.filter((n: any) => !isUmbrellaSummary(n?.title || '', umbrellaSchoolNames))
+  const droppedUmbrella = rawNotices.length - specificNotices.length
+  const haveSomethingElse =
+    events.length + otherEvents.length + specificNotices.length + learning.length > 0
+  const notices = haveSomethingElse ? specificNotices : rawNotices
+  if (droppedUmbrella > 0 && haveSomethingElse) {
+    console.log(`Dropped ${droppedUmbrella} umbrella newsletter notice(s) already covered by individual items`)
+  }
 
   console.log(`Extracted: ${events.length} events, ${otherEvents.length} other events, ${notices.length} notices, ${learning.length} learning`)
 
