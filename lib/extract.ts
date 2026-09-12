@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import Anthropic from '@anthropic-ai/sdk'
 import mammoth from 'mammoth'
 import { noticesAreSimilar } from '@/lib/text'
+import { matchesAChildsYearGroup } from '@/lib/yeargroups'
 
 // A start-of-term newsletter can carry dozens of events; at 4096 the reply was
 // cut off mid-JSON, the parse threw, and the email was marked processed with
@@ -302,8 +303,27 @@ Email body: ${emailText}${attachmentText}`
   } catch {
     throw new Error(`Extraction returned unparseable JSON — nothing saved for "${subject}"`)
   }
-  const events = result.events || []
-  const otherEvents = result.other_events || []
+  // The prompt's year-group rule is not reliably obeyed -- a newsletter
+  // produced "Sam - Y4 Parent Information Session" whose own description said
+  // "Sam is in Y3 so this is not directly relevant" -- so check the output
+  // rather than trusting it. Biased towards keeping: only an item that names
+  // year groups, none of which belong to a child at that school, is dropped.
+  const droppedForYearGroup: string[] = []
+  const rightYearGroup = (item: any) => {
+    const text = `${item?.title || ''} ${item?.description || ''}`
+    if (matchesAChildsYearGroup(text, item?.school_name, children || [])) return true
+    droppedForYearGroup.push(String(item?.title || '(untitled)'))
+    return false
+  }
+
+  const events = (result.events || []).filter(rightYearGroup)
+  const otherEvents = (result.other_events || []).filter(rightYearGroup)
+  if (droppedForYearGroup.length > 0) {
+    console.log(
+      `Dropped ${droppedForYearGroup.length} item(s) for a year group no child is in: ` +
+      droppedForYearGroup.join(' | ')
+    )
+  }
   const notices = result.notices || []
   const learning = result.learning || []
 
