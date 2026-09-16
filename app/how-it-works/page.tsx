@@ -24,59 +24,20 @@ export default function HowItWorks() {
               <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">2</span>
               <h2 className="text-2xl font-bold text-gray-900">Set up email forwarding</h2>
             </div>
-            <p className="text-gray-700 mb-4">Set up an automatic rule so school emails forward to SchoolBrief. Choose your email provider:</p>
-
-            <div className="bg-white border rounded-lg p-5 mb-4">
-              <h3 className="font-semibold text-gray-900 mb-3">📧 Gmail</h3>
-              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
-                <li>Open Gmail → click the cog icon → <strong>See all settings</strong></li>
-                <li>Click the <strong>Filters and Blocked Addresses</strong> tab</li>
-                <li>Click <strong>Create a new filter</strong></li>
-                <li>In the <strong>From</strong> field, enter your school's email domain (e.g. <code className="bg-gray-100 px-2 py-1 rounded text-xs">*@yourschool.sch.uk</code>)</li>
-                <li>Click <strong>Create filter</strong></li>
-                <li>Tick <strong>Forward it to</strong> and add your SchoolBrief address</li>
-<li>Gmail will send a confirmation email to your SchoolBrief address — we'll automatically forward it to your inbox with a clickable confirmation link</li>
-<li>Click the confirmation link in that email to activate forwarding</li>
-                <li>Click <strong>Create filter</strong></li>
-              </ol>
-            </div>
-
-            <div className="bg-white border rounded-lg p-5 mb-4">
-              <h3 className="font-semibold text-gray-900 mb-3">📨 Outlook / Hotmail</h3>
-              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
-                <li>Open Outlook → click the cog icon (top right) → <strong>View all Outlook settings</strong></li>
-                <li>Go to <strong>Mail</strong> → <strong>Rules</strong></li>
-                <li>Click <strong>Add new rule</strong></li>
-                <li>Name it "Forward to SchoolBrief"</li>
-                <li>Set a condition: <strong>From</strong> → enter your school's email address or domain</li>
-                <li>Set an action: <strong>Forward to</strong> → enter your SchoolBrief address</li>
-                <li>Click <strong>Save</strong></li>
-              </ol>
-              <p className="text-xs text-gray-500 mt-3">Note: Outlook doesn't support wildcard forwarding (like <code>*@school.uk</code>) — you'll need to add the specific sender address, or add a rule per sender.</p>
-            </div>
-
-            <div className="bg-white border rounded-lg p-5">
-              <h3 className="font-semibold text-gray-900 mb-3">🍎 Apple Mail / iCloud</h3>
-              <ol className="space-y-2 text-gray-700 list-decimal list-inside ml-2 text-sm">
-                <li>Log in to <strong>icloud.com</strong> → open Mail</li>
-                <li>Click the cog icon → <strong>Rules</strong></li>
-                <li>Click <strong>Add a Rule</strong></li>
-                <li>Set condition: <strong>If a message is from</strong> → your school's email</li>
-                <li>Set action: <strong>Forward to</strong> → your SchoolBrief address</li>
-                <li>Click <strong>Add Rule</strong></li>
-              </ol>
-            </div>
-
-            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mt-4 rounded">
-              <p className="text-sm text-blue-900"><strong>Tip:</strong> Not sure what your school's email domain is? Look at a recent email from them — it's whatever comes after the @ sign.</p>
-            </div>
-
-            <p className="text-gray-500 text-sm mt-4"><strong>Yahoo Mail:</strong> Unfortunately Yahoo's free plan doesn't support auto-forwarding. You can still forward school emails manually to your SchoolBrief address, or contact us and we'll help you find a workaround.</p>
+            <p className="text-gray-700">Set up an automatic rule so school emails forward to SchoolBrief. Works with Gmail, Hotmail and Outlook. Unfortunately autoforward does not work with Yahoo or email providers that use the Yahoo technology (e.g. @BTinternet.com emails).</p>
           </section>
 
           <section>
             <div className="flex items-center gap-3 mb-3">
               <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">3</span>
+              <h2 className="text-2xl font-bold text-gray-900">Enter Children&apos;s details</h2>
+            </div>
+            <p className="text-gray-700">Enter your children&apos;s school and school year so the email only includes details relevant for you.</p>
+          </section>
+
+          <section>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">4</span>
               <h2 className="text-2xl font-bold text-gray-900">Get your daily digest</h2>
             </div>
             <p className="text-gray-700 mb-3">Every morning at 7am you'll receive one email covering the week ahead:</p>

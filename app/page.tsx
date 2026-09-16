@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import EmailAutomationOptions from './_components/EmailAutomationOptions'
 
 type OnboardingStatus = {
   received: boolean
@@ -153,18 +154,9 @@ export default function Home() {
                 ? 'Want this every morning automatically, without forwarding by hand?'
                 : 'Then automate it so you never have to forward by hand:'}
             </p>
-            <a
-              href="/api/gmail/connect"
-              className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center mb-2"
-            >
-              Connect Gmail →
-            </a>
-            <a
-              href="/api/outlook/connect"
-              className="inline-block bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-3 font-medium text-sm w-full text-center mb-2"
-            >
-              Connect Outlook / Hotmail →
-            </a>
+            <div className="mb-4">
+              <EmailAutomationOptions />
+            </div>
             <p className="text-xs text-gray-400 text-center">
               On a different provider? <a href="/how-it-works" className="underline">Set up forwarding instead</a>
             </p>
