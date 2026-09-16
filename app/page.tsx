@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import EmailAutomationOptions from './_components/EmailAutomationOptions'
+import SignedInBadge, { type SignedInUser } from './_components/SignedInBadge'
 
 type OnboardingStatus = {
   received: boolean
@@ -24,6 +25,20 @@ export default function Home() {
   const [copied, setCopied] = useState(false)
   const [sendingDigest, setSendingDigest] = useState(false)
   const [digestSent, setDigestSent] = useState(false)
+  const [signedInUser, setSignedInUser] = useState<SignedInUser | null>(null)
+
+  // Who is signed in, for the front page badge. The session cookie is HttpOnly,
+  // so ask the server rather than reading it.
+  useEffect(() => {
+    fetch('/api/manage/me')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data?.user?.email) {
+          setSignedInUser({ email: data.user.email, inbound_address: data.user.inbound_address })
+        }
+      })
+      .catch(() => {})
+  }, [])
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   async function handleSignup() {
@@ -170,7 +185,8 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50">
+    <main className={`relative min-h-screen flex items-center justify-center bg-gray-50${signedInUser ? ' px-4 pt-28 pb-8 sm:pt-8' : ''}`}>
+      <SignedInBadge user={signedInUser} />
       <div className="bg-white p-8 rounded-xl shadow max-w-md w-full">
         <div className="text-4xl mb-4">🏫</div>
         <h1 className="text-3xl font-bold mb-2 text-gray-900">SchoolBrief</h1>
@@ -204,7 +220,9 @@ export default function Home() {
           {loading ? 'Setting up...' : 'Get my forwarding address'}
         </button>
         <p className="text-xs text-gray-400 mt-4 text-center">Currently in private beta — invite only.</p>
-<p className="text-xs text-gray-400 mt-2 text-center">Already signed up? <a href="/manage" className="text-blue-500 hover:underline">Login</a></p>
+        {!signedInUser && (
+          <p className="text-xs text-gray-400 mt-2 text-center">Already signed up? <a href="/manage" className="text-blue-500 hover:underline">Login</a></p>
+        )}
       </div>
     </main>
   )
