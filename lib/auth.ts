@@ -53,6 +53,11 @@ export function sessionCookie(token: string) {
   return `sb_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`
 }
 
+// Expires the session cookie. It is HttpOnly, so only the server can clear it.
+export function clearedSessionCookie() {
+  return `sb_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
+}
+
 export function getSessionUserId(req: Request): string | null {
   const cookie = req.headers.get('cookie') || ''
   const m = cookie.match(/(?:^|;\s*)sb_session=([^;\s]+)/)
