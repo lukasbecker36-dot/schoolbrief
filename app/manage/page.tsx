@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import EmailAutomationOptions from '../_components/EmailAutomationOptions'
+import AccountMenu from '../_components/AccountMenu'
 
 const YEAR_LEVELS = [
   'Nursery',
@@ -175,13 +176,9 @@ function Manage() {
   return (
     <main className="min-h-screen bg-gray-50 py-16 px-6">
       <div className="max-w-xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-start justify-between gap-4 mb-6">
           <a href="/" className="text-blue-600 text-sm">← Back</a>
-          <form method="POST" action="/api/auth/logout">
-            <button type="submit" className="text-sm text-gray-600 hover:text-gray-900 border rounded-lg px-3 py-1.5 bg-white">
-              Log out
-            </button>
-          </form>
+          <AccountMenu user={user} showAccountHome={false} />
         </div>
         <h1 className="text-2xl font-bold mb-1 text-gray-900">Your children</h1>
         <p className="text-gray-500 text-sm mb-8">SchoolBrief will filter events to match your children's year levels and schools.</p>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import EmailAutomationOptions from './_components/EmailAutomationOptions'
-import SignedInBadge, { type SignedInUser } from './_components/SignedInBadge'
+import AccountMenu, { type SignedInUser } from './_components/AccountMenu'
 
 type OnboardingStatus = {
   received: boolean
@@ -186,7 +186,7 @@ export default function Home() {
 
   return (
     <main className={`relative min-h-screen flex items-center justify-center bg-gray-50${signedInUser ? ' px-4 pt-28 pb-8 sm:pt-8' : ''}`}>
-      <SignedInBadge user={signedInUser} />
+      <AccountMenu user={signedInUser} className="absolute top-4 right-4 left-4 sm:left-auto" />
       <div className="bg-white p-8 rounded-xl shadow max-w-md w-full">
         <div className="text-4xl mb-4">🏫</div>
         <h1 className="text-3xl font-bold mb-2 text-gray-900">SchoolBrief</h1>
