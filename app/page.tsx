@@ -204,7 +204,7 @@ export default function Home() {
           {loading ? 'Setting up...' : 'Get my forwarding address'}
         </button>
         <p className="text-xs text-gray-400 mt-4 text-center">Currently in private beta — invite only.</p>
-<p className="text-xs text-gray-400 mt-2 text-center">Already signed up? <a href="/manage" className="text-blue-500 hover:underline">Manage your children →</a></p>
+<p className="text-xs text-gray-400 mt-2 text-center">Already signed up? <a href="/manage" className="text-blue-500 hover:underline">Login</a></p>
       </div>
     </main>
   )
