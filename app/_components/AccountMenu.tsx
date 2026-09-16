@@ -42,7 +42,11 @@ export default function AccountMenu({
   const itemClass = 'block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    // The wrapper anchors the dropdown, which needs it positioned. Callers pass
+    // their own positioning (absolute, top right); only fall back to relative
+    // when they don't. Adding relative alongside a caller's absolute made the
+    // two classes compete, and relative won -- so the box sat in the page flow.
+    <div ref={containerRef} className={className || 'relative'}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
