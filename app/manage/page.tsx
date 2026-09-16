@@ -174,12 +174,10 @@ function Manage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 py-16 px-6">
+    <main className="relative min-h-screen bg-gray-50 pt-32 sm:pt-28 pb-16 px-6">
+      <AccountMenu user={user} showAccountHome={false} className="absolute top-4 right-4 left-4 sm:left-auto" />
       <div className="max-w-xl mx-auto">
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <a href="/" className="text-blue-600 text-sm">← Back</a>
-          <AccountMenu user={user} showAccountHome={false} />
-        </div>
+        <a href="/" className="text-blue-600 text-sm mb-6 inline-block">← Back</a>
         <h1 className="text-2xl font-bold mb-1 text-gray-900">Your children</h1>
         <p className="text-gray-500 text-sm mb-8">SchoolBrief will filter events to match your children's year levels and schools.</p>
 
