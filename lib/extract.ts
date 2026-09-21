@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import Anthropic from '@anthropic-ai/sdk'
 import mammoth from 'mammoth'
-import { noticesAreSimilar, isUmbrellaSummary } from '@/lib/text'
+import { noticesAreSimilar, isUmbrellaSummary, isThirdPartyFlyerNotice } from '@/lib/text'
 import { matchesAChildsYearGroup } from '@/lib/yeargroups'
 
 // A start-of-term newsletter can carry dozens of events; at 4096 the reply was
@@ -196,6 +196,7 @@ CATEGORY 2 — NOTICES (announcements to act on today or tomorrow, or with no da
 Examples: staffing changes, policy updates, road safety reminders, general school news
 Rules:
 - ONLY include notices from the school itself — not third-party advertisements or community notices
+- Holiday clubs, activity camps, taster classes and anything advertised on a flyer the school has passed on are NOT notices, however they arrive. They belong in CATEGORY 4, one entry per activity. Do NOT write a notice saying that flyers have been sent home — the activities themselves are what matters.
 - These are one-off announcements relevant today but not ongoing
 - Do NOT produce a catch-all notice summarising the email as a whole (e.g. "General Newsletter — 11th September") when its contents are already being extracted as individual notices and events. Extract the individual items; the summary duplicates them and adds nothing. Only summarise the email as one notice if it contains nothing that stands alone.
 - A clubs list or timetable email becomes a SINGLE notice: say that the term's schedule is out, how to sign up, and above all the deadline. Do NOT list the individual clubs. Leave its event_date null; the sign-up deadline is extracted as an event (see CATEGORY 1), which is what keeps it in the digest until the day it matters.
@@ -220,7 +221,9 @@ CATEGORY 4 — OTHER EVENTS (community, commercial, or third-party events mentio
 Examples: holiday clubs, community festivals, external sports events, paid activities, charity events not run by the school
 Rules:
 - These are events mentioned in school communications but NOT organised by the school
+- A flyers email usually advertises several things: extract EVERY holiday club, camp, taster session and class as its own entry, rather than one entry saying flyers were attached
 - Include enough detail for parents to act on them if interested
+- event_date is REQUIRED: use the first day the activity runs, or the booking deadline where that is the thing to act on. If a date genuinely cannot be worked out, leave the activity out — an entry with no date never appears in the digest at all
 - is_school_event: false
 
 Return ONLY a JSON object in this exact format, no other text:
@@ -347,7 +350,23 @@ Email body: ${emailText}${attachmentText}`
   // Lawrence sent "Year 4 - bring in cereal boxes" and "Year 6 House Captain
   // elections" to a parent whose children are in Years 5 and 2. A notice naming
   // no year at all is whole-school, and kept.
-  const notices = keptNotices.filter((n: { title?: string; content?: string; school_name?: string }) => {
+  // A "flyers have been sent home" notice, when the flyers' activities were
+  // themselves extracted, is just a heading for rows that appear in the
+  // community section anyway. Dropped only when that section got something, so
+  // a flyer round-up is never lost outright.
+  const flyerNotices = keptNotices.filter((n: { title?: string; content?: string }) =>
+    isThirdPartyFlyerNotice(n?.title || '', n?.content)
+  )
+  const noticesAfterFlyers =
+    otherEvents.length > 0 ? keptNotices.filter((n: unknown) => !flyerNotices.includes(n)) : keptNotices
+  if (otherEvents.length > 0 && flyerNotices.length > 0) {
+    console.log(
+      `Dropped ${flyerNotices.length} flyer notice(s) already covered by community events: ` +
+      flyerNotices.map((n: { title?: string }) => n?.title).join(' | ')
+    )
+  }
+
+  const notices = noticesAfterFlyers.filter((n: { title?: string; content?: string; school_name?: string }) => {
     if (matchesAChildsYearGroup(n?.title || '', n?.content, n?.school_name, children || [])) return true
     console.log(`Dropped notice for a year group no child is in: ${n?.title || '(untitled)'}`)
     return false

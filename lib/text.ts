@@ -105,3 +105,27 @@ export function isUmbrellaSummary(title: string, schoolNames: string[]): boolean
   if (!mentionsSummary) return false
   return words.every(w => SUMMARY_WORDS.has(w) || isDateWord(w))
 }
+
+// Is this notice really third-party advertising -- holiday clubs, activity
+// camps, taster classes, "flyers attached"? Those belong in the community
+// section of the digest as dated entries, not in Notices, which is for things
+// to act on today or tomorrow. A parent does not need to be told at 6am that
+// half-term flyers exist.
+//
+// School-run clubs are deliberately not matched: "Autumn Term Clubs" and
+// "Extracurricular Clubs Starting Next Week" are the school's own and stay.
+const FLYER_PATTERNS = [
+  /\bflyers?\b/i,
+  /\bholiday\s+(?:club|camp|activit)/i,
+  /\bactivity\s+(?:camp|club)/i,
+  /\bhalf[-\s]?term\s+(?:club|camp|activit)/i,
+  /\btaster\s+(?:class|session|lesson)/i,
+  // A camp counts when something says what kind it is, so a school residential
+  // ("PGL camp") isn't swept up with the tennis and football camps.
+  /\b(?:holiday|summer|easter|christmas|half[-\s]?term|activity|sports?|tennis|football|netball|cricket|multi[-\s]?sports?|drama|dance|art|music|coding|kids?)\b[^.]{0,24}\bcamps?\b/i
+]
+
+export function isThirdPartyFlyerNotice(title: string, content?: string | null): boolean {
+  const text = `${title || ''} ${content || ''}`
+  return FLYER_PATTERNS.some(re => re.test(text))
+}
