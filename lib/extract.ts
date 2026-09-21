@@ -192,16 +192,17 @@ Rules:
 - Matching: titles are considered the same if they share the core event name (e.g. "Sports Day" matches "Year 2 Sports Day" matches "Sam — Year 2 Sports Day" — all on the same date). Don't be deceived by different child prefixes or extra descriptive words.
 - is_school_event: true
 
-CATEGORY 2 — NOTICES (short-term announcements from the school, no specific future date)
+CATEGORY 2 — NOTICES (announcements to act on today or tomorrow, or with no date at all)
 Examples: staffing changes, policy updates, road safety reminders, general school news
 Rules:
 - ONLY include notices from the school itself — not third-party advertisements or community notices
 - These are one-off announcements relevant today but not ongoing
 - Do NOT produce a catch-all notice summarising the email as a whole (e.g. "General Newsletter — 11th September") when its contents are already being extracted as individual notices and events. Extract the individual items; the summary duplicates them and adds nothing. Only summarise the email as one notice if it contains nothing that stands alone.
-- A clubs list or timetable email becomes a SINGLE notice: say that the term's schedule is out, how to sign up, and above all the deadline. Do NOT list the individual clubs. Set event_date to the sign-up deadline when there is one, so the notice stays in the digest until the day it matters. The deadline is also extracted as an event (see CATEGORY 1); the notice carries the detail, the event carries the date.
+- A clubs list or timetable email becomes a SINGLE notice: say that the term's schedule is out, how to sign up, and above all the deadline. Do NOT list the individual clubs. Leave its event_date null; the sign-up deadline is extracted as an event (see CATEGORY 1), which is what keeps it in the digest until the day it matters.
 - Include school name in title
-- Also include as a notice any event happening TODAY or TOMORROW that is too soon to add to the calendar meaningfully — these should be captured as notices so parents see them immediately.
-- If a notice relates to something happening on a SPECIFIC day (e.g. an event today or tomorrow, or a one-off arrangement "for today only"), set event_date to that day in YYYY-MM-DD format. For general announcements with no specific day (staffing changes, policy updates), set event_date to null.
+- A notice is for something to act on TODAY or TOMORROW ("bring a packed lunch tomorrow, no hot meals", "PE kit needed in the morning", "front gate closed today"), or for news with no date at all (staffing changes, policy updates). Set event_date to that day in YYYY-MM-DD format when it is today or tomorrow, otherwise null.
+- ANYTHING DATED FURTHER AHEAD THAN TOMORROW IS AN EVENT, NOT A NOTICE. A consent deadline three weeks away, a competition closing next month, a trip in October: extract those as CATEGORY 1 events with action_required set, and do NOT also write a notice for them. The digest carries events until the day they happen, moving them from Looking ahead into This week as they approach; a notice would simply repeat underneath every morning in the meantime.
+- Because a notice is only ever about today or tomorrow, put everything the parent needs to act on into its content -- what to bring, by when, who to contact.
 - expires_in_days: 1
 
 CATEGORY 3 — LEARNING (weekly overviews for a specific child)
@@ -446,9 +447,23 @@ Email body: ${emailText}${attachmentText}`
       if (similarExists) {
         console.log('Skipping duplicate notice:', notice.title)
       } else {
-        const eventDate = notice.event_date && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(notice.event_date)
+        let eventDate = notice.event_date && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(notice.event_date)
           ? notice.event_date
           : null
+
+        // A notice is for today or tomorrow. A date further out belongs on an
+        // event, which the digest carries until the day itself; left on a
+        // notice it kept the notice alive -- and therefore printed -- every
+        // morning until then. A poster competition dated seven weeks out ran in
+        // fifty consecutive digests. Drop the date rather than the notice, so it
+        // shows once and expires normally.
+        const tomorrow = new Date()
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        const tomorrowStr = tomorrow.toISOString().split('T')[0]
+        if (eventDate && eventDate > tomorrowStr) {
+          console.log(`Notice dated beyond tomorrow (${eventDate}); dropping the date: ${notice.title}`)
+          eventDate = null
+        }
 
         // A notice about a specific future day has to outlive the default one
         // day, or it drops out of the digest long before the thing it warns
