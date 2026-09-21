@@ -30,6 +30,20 @@ const CLASS_CODE = /\b(\d{1,2})[A-Z]{2}\b/g
 const SPAN_FROM_RECEPTION =
   /\b(reception|nursery)\b[^.]{0,24}?(?:-|–|to|through|up\s*to|until)[^.]{0,16}?(?:year|yr|y)\s*\.?\s*(\d{1,2})\b/gi
 
+// "Reception" is also what schools call the front desk: "pay by card at the
+// reception machine", "hand entries in at reception". Counting those as the year
+// group dropped a whole-school stationery request from a family with no
+// Reception child. So it only counts as a year group when it reads like one --
+// followed by class/children/parents, opening a title, sitting next to another
+// year group, or written "Year R".
+const RECEPTION_AS_YEAR = [
+  /\breception\b\s*(?:class(?:es)?|year|pupils|children|kids|cohort|parents|families|intake|teachers?)\b/i,
+  /(?:^|[:\u2014\u2013-])\s*reception\b/i,
+  /\breception\b[^.]{0,20}\b(?:year|yr|y)\s*\d/i,
+  /\b(?:year|yr|y)\s*\d[^.]{0,20}\breception\b/i,
+  /\b(?:year|yr)\s*r\b/i
+]
+
 const KEY_STAGES: Record<string, number[]> = {
   ks1: [1, 2],
   ks2: [3, 4, 5, 6],
@@ -52,7 +66,7 @@ export function mentionedYearGroups(text: string): string[] {
   const found = new Set<string>()
   const raw = String(text || '')
 
-  if (/\breception\b|\bYR\b|\brec\b/i.test(raw)) found.add('reception')
+  if (RECEPTION_AS_YEAR.some(re => re.test(raw))) found.add('reception')
   if (/\bnursery\b/i.test(raw)) found.add('nursery')
 
   for (const [stage, years] of Object.entries(KEY_STAGES)) {

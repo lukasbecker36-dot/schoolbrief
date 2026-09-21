@@ -340,7 +340,18 @@ Email body: ${emailText}${attachmentText}`
   const droppedUmbrella = rawNotices.length - specificNotices.length
   const haveSomethingElse =
     events.length + otherEvents.length + specificNotices.length + learning.length > 0
-  const notices = haveSomethingElse ? specificNotices : rawNotices
+  const keptNotices = haveSomethingElse ? specificNotices : rawNotices
+
+  // Notices get the same year-group check as events. A notice naming a year
+  // group that no child at that school is in isn't this family's news: St
+  // Lawrence sent "Year 4 - bring in cereal boxes" and "Year 6 House Captain
+  // elections" to a parent whose children are in Years 5 and 2. A notice naming
+  // no year at all is whole-school, and kept.
+  const notices = keptNotices.filter((n: { title?: string; content?: string; school_name?: string }) => {
+    if (matchesAChildsYearGroup(n?.title || '', n?.content, n?.school_name, children || [])) return true
+    console.log(`Dropped notice for a year group no child is in: ${n?.title || '(untitled)'}`)
+    return false
+  })
   if (droppedUmbrella > 0 && haveSomethingElse) {
     console.log(`Dropped ${droppedUmbrella} umbrella newsletter notice(s) already covered by individual items`)
   }
