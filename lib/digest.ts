@@ -187,9 +187,7 @@ function formatDigest(
 
 // Build the digest HTML for a single user. Returns the html and whether it
 // contained any real content (used by the cron to skip empty digests).
-export async function buildDigestForUser(
-  user: any
-): Promise<{ html: string; hasContent: boolean; shownNoticeIds: string[] }> {
+export async function buildDigestForUser(user: any): Promise<{ html: string; hasContent: boolean }> {
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
 
@@ -238,28 +236,7 @@ export async function buildDigestForUser(
   )
 
   const learning = activeNotices.filter(n => n.category === 'learning')
-  const allCurrentNotices = activeNotices.filter(n => n.category === 'notice')
-
-  // A dated notice -- a deadline, a consent form -- stays live until its date,
-  // which can be weeks away: the Light Up Hassocks poster competition arrived on
-  // 14 September for a 3 November deadline, and appeared in every morning's
-  // digest in between. So a dated notice is shown when it's new, then again in
-  // the final week before its date, and not in between. Undated notices already
-  // last a single day and are unaffected.
-  //
-  // "New" means not yet sent, recorded in first_shown_at when a digest actually
-  // goes out -- guessing from created_at would double up or drop a notice
-  // whenever the cron ran late. Until that column exists, fall back to the
-  // guess.
-  const hasShownColumn = (allNotices || []).some(n => 'first_shown_at' in n)
-  const dayAgo = Date.now() - 24 * 3600_000
-  const isNew = (n: { first_shown_at?: string | null; created_at: string }) =>
-    hasShownColumn
-      ? !n.first_shown_at || String(n.first_shown_at).slice(0, 10) === todayStr
-      : new Date(n.created_at).getTime() >= dayAgo
-  const rawNotices = allCurrentNotices.filter(n =>
-    !n.event_date || isNew(n) || n.event_date <= sevenDaysStr
-  )
+  const rawNotices = activeNotices.filter(n => n.category === 'notice')
 
   // Dedupe notices that duplicate a This Week event. If the notice mentions a
   // time the calendar event doesn't, flag a possible change on the event rather
@@ -312,42 +289,25 @@ export async function buildDigestForUser(
     otherUpcoming.length > 0
 
   const html = formatDigest(thisWeek, lookingAhead, notices, learning, otherUpcoming)
-  return { html, hasContent, shownNoticeIds: notices.map(n => n.id) }
+  return { html, hasContent }
 }
 
 // Build and send the digest to a single user. When `force` is true the digest
 // is sent even if there's no content (used by the onboarding "see it now"
 // button); the cron leaves it false so empty digests are skipped.
 export async function sendDigestForUser(user: any, force = false): Promise<boolean> {
-  const { html, hasContent, shownNoticeIds } = await buildDigestForUser(user)
+  const { html, hasContent } = await buildDigestForUser(user)
   if (!hasContent && !force) return false
 
   const resend = new Resend(process.env.RESEND_API_KEY)
   const recipients = [user.email]
   if (user.secondary_email) recipients.push(user.secondary_email)
 
-  const sent = await resend.emails.send({
+  await resend.emails.send({
     from: 'SchoolBrief <digest@schoolbrief.uk>',
     to: recipients,
     subject: `📅 Your school week ahead — ${formatDate(new Date())}`,
     html
   })
-  if (sent.error) {
-    console.error('Digest send failed for', user.email, sent.error)
-    return false
-  }
-
-  // Record each notice's first appearance, so a dated one isn't repeated every
-  // morning until its date. Only after a real send -- previews don't count.
-  // Best effort: a missed stamp costs one extra appearance, and this no-ops
-  // until the column exists.
-  if (shownNoticeIds.length > 0) {
-    const { error } = await supabase
-      .from('notices')
-      .update({ first_shown_at: new Date().toISOString() })
-      .in('id', shownNoticeIds)
-      .is('first_shown_at', null)
-    if (error && error.code !== '42703') console.error('Failed to stamp shown notices:', error.message)
-  }
   return true
 }
